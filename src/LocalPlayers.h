@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "Color.h"
@@ -70,6 +71,24 @@ struct LocalControllerButtons
 	static LocalControllerButtons poll(const LocalController& controller, const InputManager& inputMgr);
 	/// the buttons that are held now but were not held before
 	LocalControllerButtons pressedSince(const LocalControllerButtons& before) const;
+};
+
+/*! \class LocalControllerWatcher
+	\brief detects which buttons the available controllers press from frame to frame
+*/
+class LocalControllerWatcher
+{
+	public:
+		using Presses = std::vector<std::pair<LocalController, LocalControllerButtons>>;
+
+		/// polls all available controllers, call once per frame.
+		/// \return the buttons each controller pressed since the last call. A controller that
+		///			is seen for the first time reports no presses, so a button that is still held
+		///			(e.g. from selecting the current menu) does not count.
+		Presses poll(const InputManager& inputMgr);
+
+	private:
+		Presses mLastButtons;
 };
 
 /*! \struct KnockoutPlayer

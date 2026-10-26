@@ -124,6 +124,43 @@ BOOST_AUTO_TEST_CASE( faulty_touch )
 	BOOST_CHECK(queue.getWaiting() == std::deque<int>({3, 0}));
 }
 
+BOOST_AUTO_TEST_CASE( join_during_match )
+{
+	KnockoutQueue queue(2, 2);
+	BOOST_CHECK_EQUAL(queue.addPlayer(2), 2);
+	BOOST_CHECK_EQUAL(queue.getPlayerCount(), 3);
+	BOOST_CHECK(queue.getWaiting() == std::deque<int>({2}));
+	BOOST_CHECK_EQUAL(queue.getRemaining(), 3);
+
+	// the new player takes over the next blob that becomes free
+	touch(queue, RIGHT_PLAYER);
+	BOOST_CHECK_EQUAL(queue.getActive(RIGHT_PLAYER), 2);
+	BOOST_CHECK(queue.getWaiting() == std::deque<int>({1}));
+}
+
+BOOST_AUTO_TEST_CASE( join_after_last_two_remain )
+{
+	KnockoutQueue queue(3, 1);
+	mistake(queue, LEFT_PLAYER);		// player 0 out, nobody waits any more
+	BOOST_CHECK(queue.getWaiting().empty());
+
+	BOOST_CHECK_EQUAL(queue.addPlayer(1), 3);
+	BOOST_CHECK_EQUAL(queue.getRemaining(), 3);
+	touch(queue, LEFT_PLAYER);			// player 2 makes room for the newcomer
+	BOOST_CHECK_EQUAL(queue.getActive(LEFT_PLAYER), 3);
+	BOOST_CHECK(queue.getWaiting() == std::deque<int>({2}));
+}
+
+BOOST_AUTO_TEST_CASE( no_join_after_match_is_decided )
+{
+	KnockoutQueue queue(2, 1);
+	mistake(queue, LEFT_PLAYER);
+	BOOST_CHECK_EQUAL(queue.getWinner(), 1);
+	BOOST_CHECK_EQUAL(queue.addPlayer(1), -1);
+	BOOST_CHECK_EQUAL(queue.getPlayerCount(), 2);
+	BOOST_CHECK_EQUAL(queue.getWinner(), 1);
+}
+
 // random matches always end with exactly one winner, and nobody is ever on both sides
 BOOST_AUTO_TEST_CASE( random_matches_have_one_winner )
 {
@@ -137,7 +174,9 @@ BOOST_AUTO_TEST_CASE( random_matches_have_one_winner )
 			while (queue.getWinner() == -1 && frames < 100000)
 			{
 				PlayerSide side = random() % 2 ? LEFT_PLAYER : RIGHT_PLAYER;
-				if (random() % 5 == 0)
+				if (queue.getPlayerCount() < 8 && random() % 50 == 0)
+					queue.addPlayer(lives);
+				else if (random() % 5 == 0)
 					mistake(queue, side);
 				else
 					touch(queue, side);
@@ -155,7 +194,7 @@ BOOST_AUTO_TEST_CASE( random_matches_have_one_winner )
 			int winner = queue.getWinner();
 			BOOST_REQUIRE_NE(winner, -1);
 			BOOST_CHECK(winner == queue.getActive(LEFT_PLAYER) || winner == queue.getActive(RIGHT_PLAYER));
-			for (int player = 0; player < players; ++player)
+			for (int player = 0; player < queue.getPlayerCount(); ++player)
 				BOOST_CHECK_EQUAL(queue.isKnockedOut(player), player != winner);
 		}
 	}

@@ -267,6 +267,20 @@ void RenderManager::setMouseMarker(float position)
 	mMouseMarkerPosition = position;
 }
 
+void RenderManager::setWaitingBlobs(std::vector<Color> colors)
+{
+	mWaitingBlobs = std::move(colors);
+}
+
+Vector2 RenderManager::getWaitingBlobPosition(unsigned index, unsigned count)
+{
+	// a row behind the net, standing on the back of the beach. The net rod always stands
+	// between two blobs, so with an odd number of blobs the row is shifted by half a place.
+	const float spacing = 48;
+	float offset = count % 2 == 1 ? spacing / 2 : 0;
+	return Vector2(400 + (index - (count - 1) / 2.f) * spacing + offset, 322);
+}
+
 SDL_Rect RenderManager::blobRect(const Vector2& position)
 {
 	SDL_Rect rect = {

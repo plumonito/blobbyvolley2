@@ -67,22 +67,8 @@ void KnockoutSetupState::step_impl()
 			return std::find(controllers.begin(), controllers.end(), player.controller) == controllers.end();
 		}), mPlayers.end());
 
-	std::vector<std::pair<LocalController, LocalControllerButtons>> currentButtons;
-	for (const auto& controller : controllers)
-	{
-		LocalControllerButtons held = LocalControllerButtons::poll(controller, inputMgr);
-
-		auto last = std::find_if(mLastButtons.begin(), mLastButtons.end(),
-				[&](const std::pair<LocalController, LocalControllerButtons>& entry) { return entry.first == controller; });
-
-		// a controller we see for the first time does nothing in this frame, so a button that
-		// is still held (e.g. from selecting this menu) does not count as a press
-		if (last != mLastButtons.end())
-			handleController(controller, held.pressedSince(last->second));
-
-		currentButtons.emplace_back(controller, held);
-	}
-	mLastButtons = currentButtons;
+	for (const auto& press : mControllers.poll(inputMgr))
+		handleController(press.first, press.second);
 
 	bool returnHeld = inputMgr.isKeyPressed(SDLK_RETURN) || inputMgr.isKeyPressed(SDLK_KP_ENTER);
 	if (returnHeld && !mLastReturn)

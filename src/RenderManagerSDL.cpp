@@ -328,6 +328,9 @@ SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
 
 RenderManagerSDL::~RenderManagerSDL()
 {
+	for(auto& texture : mWaitingBlobTextures)
+		SDL_DestroyTexture(texture.second);
+
 	SDL_DestroyTexture(mOverlayTexture);
 	SDL_DestroyTexture(mRenderTarget);
 
@@ -631,9 +634,31 @@ void RenderManagerSDL::refresh()
 	SDL_SetRenderTarget(mRenderer, mRenderTarget);
 }
 
+void RenderManagerSDL::drawWaitingBlobs()
+{
+	for (unsigned i = 0; i < mWaitingBlobs.size(); ++i)
+	{
+		SDL_Texture*& texture = mWaitingBlobTextures[mWaitingBlobs[i].toInt()];
+		if (texture == nullptr)
+		{
+			SDL_Surface* surface = colorSurface(mStandardBlob[0], mWaitingBlobs[i]);
+			texture = SDL_CreateTextureFromSurface(mRenderer, surface);
+			SDL_FreeSurface(surface);
+		}
+
+		// half the size of the blobs on court
+		Vector2 centre = getWaitingBlobPosition(i, mWaitingBlobs.size());
+		SDL_Rect position = { (int)lround(centre.x) - 19, (int)lround(centre.y) - 22, 37, 44 };
+		SDL_RenderCopy(mRenderer, texture, nullptr, &position);
+	}
+}
+
 void RenderManagerSDL::drawGame(const DuelMatchState& gameState)
 {
 	SDL_RenderCopy(mRenderer, mBackground, nullptr, nullptr);
+
+	// waiting players stand behind everything else, the rod is restored over them below
+	drawWaitingBlobs();
 
 	SDL_Rect position;
 

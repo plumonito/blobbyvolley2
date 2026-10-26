@@ -33,7 +33,8 @@ class SwitchableInputSource;
 
 /*! \class KnockoutGameState
 	\brief local knockout match of up to eight players sharing the two blobs
-	\details see KnockoutQueue for the rules
+	\details see KnockoutQueue for the rules. Controllers that are not playing yet can join
+			at any time by pressing jump.
 */
 class KnockoutGameState : public GameState
 {
@@ -49,6 +50,9 @@ class KnockoutGameState : public GameState
 	private:
 		/// feeds the touches and mistakes of the last frame into the knockout rules
 		void updateKnockout();
+		/// lets controllers that pressed jump and are not part of the match yet join the queue
+		void handleJoins(const LocalControllerWatcher::Presses& presses);
+		bool hasJoined(const LocalController& controller) const;
 		/// connects the blobs to the players on court and shows their names and colours
 		void showPlayersOnCourt();
 		/// tells a player that it is their turn by letting their gamepad vibrate
@@ -69,6 +73,8 @@ class KnockoutGameState : public GameState
 		/// the players whose turn was announced last, to notice who has just come on court
 		int mAnnouncedOnCourt[MAX_PLAYERS] = {-1, -1};
 		int mLastTouchCount[MAX_PLAYERS] = {0, 0};
+
+		LocalControllerWatcher mControllers;
 
 		/// e.g. "player 3 is out", shown for a moment
 		std::string mMessage;

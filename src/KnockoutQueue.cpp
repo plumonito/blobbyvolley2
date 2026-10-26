@@ -65,6 +65,18 @@ bool KnockoutQueue::update(const bool touched[MAX_PLAYERS], const bool error[MAX
 	return changed;
 }
 
+int KnockoutQueue::addPlayer(int lives)
+{
+	assert(lives >= 1);
+	if (getWinner() != -1)
+		return -1;
+
+	int player = mLives.size();
+	mLives.push_back(lives);
+	mWaiting.push_back(player);
+	return player;
+}
+
 bool KnockoutQueue::leaveCourt(PlayerSide side)
 {
 	if (mWaiting.empty())

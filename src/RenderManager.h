@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #pragma once
 
 #include <map>
+#include <vector>
 #include <SDL.h>
 
 #include "Vector.h"
@@ -128,6 +129,12 @@ class RenderManager : public ObjectCounter<RenderManager>
 
 		void setMouseMarker(float position);
 
+		// Players waiting for their turn (knockout mode), in queue order. drawGame shows
+		// them as small blobs in these colours at the back of the beach.
+		void setWaitingBlobs(std::vector<Color> colors);
+		// Centre of a waiting blob, the first one is next in line
+		static Vector2 getWaitingBlobPosition(unsigned index, unsigned count);
+
 		// This simply draws the given text with its top left corner at the
 		// given position and doesn't care about line feeds.
 		virtual void drawText(const std::string& text, Vector2 position, unsigned int flags = TF_NORMAL) {};
@@ -180,6 +187,8 @@ class RenderManager : public ObjectCounter<RenderManager>
 		std::map<std::string, BufferedImage*> mImageMap;
 
 		float mMouseMarkerPosition;
+
+		std::vector<Color> mWaitingBlobs;
 
 	private:
 		std::unique_ptr<BloodManager> mBloodMgr;

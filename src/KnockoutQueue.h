@@ -32,8 +32,9 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 			When a side makes a mistake, the player on court there loses a life and leaves the
 			court as well; without lives left, they are knocked out instead of queueing up again.
 			Once nobody is waiting, the last two players stay on court until one of them is out.
+			New players can join at any time before the match is decided: they queue up last.
 			The last player standing wins.
-			Players are identified by their index, 0 .. playerCount - 1.
+			Players are identified by their index, in the order in which they joined.
 */
 class KnockoutQueue
 {
@@ -46,6 +47,12 @@ class KnockoutQueue
 		/// \param error for each side, whether it made a mistake
 		/// \return true if the players on court or their lives changed
 		bool update(const bool touched[MAX_PLAYERS], const bool error[MAX_PLAYERS]);
+
+		/// a new player joins the match and waits at the end of the queue
+		/// \return the index of the new player, or -1 if the match is already decided
+		int addPlayer(int lives);
+		/// number of players who ever took part, including those knocked out
+		int getPlayerCount() const { return mLives.size(); }
 
 		/// the player who controls the blob on that side. When the last opponent is knocked
 		/// out, the side keeps that player, as the match is over anyway.

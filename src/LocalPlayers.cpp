@@ -126,6 +126,25 @@ LocalControllerButtons LocalControllerButtons::pressedSince(const LocalControlle
 	return pressed;
 }
 
+LocalControllerWatcher::Presses LocalControllerWatcher::poll(const InputManager& inputMgr)
+{
+	Presses presses;
+	Presses currentButtons;
+	for (const auto& controller : LocalController::getAvailable(inputMgr))
+	{
+		LocalControllerButtons held = LocalControllerButtons::poll(controller, inputMgr);
+
+		auto last = std::find_if(mLastButtons.begin(), mLastButtons.end(),
+				[&](const Presses::value_type& entry) { return entry.first == controller; });
+		if (last != mLastButtons.end())
+			presses.emplace_back(controller, held.pressedSince(last->second));
+
+		currentButtons.emplace_back(controller, held);
+	}
+	mLastButtons = currentButtons;
+	return presses;
+}
+
 std::string KnockoutPlayer::getName() const
 {
 	return "player " + std::to_string(number);

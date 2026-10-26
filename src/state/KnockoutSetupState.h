@@ -19,7 +19,6 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 #pragma once
 
-#include <utility>
 #include <vector>
 
 #include "State.h"
@@ -51,8 +50,7 @@ class KnockoutSetupState : public State
 		std::vector<KnockoutPlayer> mPlayers;
 		int mLives;
 
-		/// button state of the previous frame, used to detect presses
-		std::vector<std::pair<LocalController, LocalControllerButtons>> mLastButtons;
+		LocalControllerWatcher mControllers;
 		/// start the match / leave the menu at the end of this frame
 		bool mStartRequested = false;
 		bool mBackRequested = false;

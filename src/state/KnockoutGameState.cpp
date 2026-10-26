@@ -21,6 +21,8 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #include "KnockoutGameState.h"
 
 /* includes */
+#include <algorithm>
+
 #include "BlobbyApp.h"
 #include "DuelMatch.h"
 #include "IMGUI.h"
@@ -42,10 +44,12 @@ namespace
 	const int KNOCKOUT_SCORE_TO_WIN = 999999;
 	/// how long "player x is out" is shown
 	const int MESSAGE_FRAMES = 150;
-	const unsigned MAX_SMALL_LINE_LENGTH = 62;
 	/// vibration of the gamepad of a player who has just taken over a blob
 	const float TURN_RUMBLE_STRENGTH = 0.75;
 	const int TURN_RUMBLE_MS = 300;
+	/// confirms that a player joined
+	const float JOIN_RUMBLE_STRENGTH = 0.4;
+	const int JOIN_RUMBLE_MS = 150;
 }
 
 KnockoutGameState::KnockoutGameState(std::vector<KnockoutPlayer> players, int lives)
@@ -95,6 +99,8 @@ void KnockoutGameState::step_impl()
 	IMGUI& imgui = getIMGUI();
 
 	bool startPressed = gamepadStartPressed();
+	// polled every frame, so that presses are detected correctly after a pause
+	auto controllerPresses = mControllers.poll(getInputMgr());
 
 	if(!mErrorMessage.empty())
 	{
@@ -152,6 +158,8 @@ void KnockoutGameState::step_impl()
 	}
 	else
 	{
+		handleJoins(controllerPresses);
+
 		mRecorder->record(mMatch->getState());
 		mMatch->step();
 		updateKnockout();
@@ -206,6 +214,36 @@ void KnockoutGameState::updateKnockout()
 	showPlayersOnCourt();
 }
 
+void KnockoutGameState::handleJoins(const LocalControllerWatcher::Presses& presses)
+{
+	for (const auto& press : presses)
+	{
+		const LocalController& controller = press.first;
+		if (!press.second.jump || hasJoined(controller))
+			continue;
+
+		// every player of a match keeps their colour, so at most eight can ever take part
+		int number = KnockoutPlayer::freeNumber(mPlayers);
+		if (number == 0 || mQueue.addPlayer(mLives) == -1)
+			continue;
+
+		mPlayers.push_back(KnockoutPlayer{controller, number});
+		mPlayerInputs.push_back(std::make_shared<LocalInputSource>(controller.createInputDevice(&getInputMgr())));
+
+		mMessage = mPlayers.back().getName() + " joined";
+		mMessageFrames = MESSAGE_FRAMES;
+		playSound(SoundManager::IMPACT, BALL_HIT_PLAYER_SOUND_VOLUME);
+		if (controller.type == LocalController::GAMEPAD)
+			getInputMgr().rumbleGamepad(controller.id, JOIN_RUMBLE_STRENGTH, JOIN_RUMBLE_MS);
+	}
+}
+
+bool KnockoutGameState::hasJoined(const LocalController& controller) const
+{
+	return std::any_of(mPlayers.begin(), mPlayers.end(),
+			[&](const KnockoutPlayer& player) { return player.controller == controller; });
+}
+
 void KnockoutGameState::showPlayersOnCourt()
 {
 	for (PlayerSide side : {LEFT_PLAYER, RIGHT_PLAYER})
@@ -242,38 +280,46 @@ std::string KnockoutGameState::getCourtName(int player) const
 
 void KnockoutGameState::presentKnockoutUI()
 {
-	getApp().getRenderManager().drawGame(mMatch->getState());
+	const auto& waiting = mQueue.getWaiting();
+	const bool running = mWinnerSide == NO_PLAYER;
+
+	// the waiting players stand in line at the back of the beach
+	std::vector<Color> waitingColors;
+	if (running)
+	{
+		for (int player : waiting)
+			waitingColors.push_back(mPlayers[player].getColor());
+	}
+
+	RenderManager& renderer = getApp().getRenderManager();
+	renderer.setWaitingBlobs(waitingColors);
+	renderer.drawGame(mMatch->getState());
+	renderer.setWaitingBlobs({});
 
 	auto& imgui = getIMGUI();
+
+	for (unsigned i = 0; i < waitingColors.size(); ++i)
+	{
+		Vector2 position = RenderManager::getWaitingBlobPosition(i, waitingColors.size());
+		imgui.doText(GEN_ID, position - Vector2(0, 40), std::to_string(mPlayers[waiting[i]].number), TF_SMALL_FONT | TF_ALIGN_CENTER);
+		if (i == 0)
+			imgui.doText(GEN_ID, position - Vector2(24, 6), "next", TF_SMALL_FONT | TF_ALIGN_RIGHT);
+	}
 
 	imgui.doText(GEN_ID, Vector2(24, 24), std::to_string(mQueue.getRemaining()) + " left");
 	imgui.doText(GEN_ID, Vector2(400, 24), mMatch->getTimeString(), TF_ALIGN_CENTER);
 
 	// players on court
-	if (mWinnerSide == NO_PLAYER)
+	if (running)
 	{
 		imgui.doText(GEN_ID, Vector2(12, 550), mMatch->getPlayer(LEFT_PLAYER).getName());
 		imgui.doText(GEN_ID, Vector2(788, 550), mMatch->getPlayer(RIGHT_PLAYER).getName(), TF_ALIGN_RIGHT);
 	}
 
-	// waiting players
-	if (mWinnerSide == NO_PLAYER && !mQueue.getWaiting().empty())
-	{
-		std::string queue = "next:";
-		for (int player : mQueue.getWaiting())
-		{
-			std::string name = " " + mPlayers[player].getName();
-			if (queue.size() + name.size() + 4 > MAX_SMALL_LINE_LENGTH)
-			{
-				queue += " ...";
-				break;
-			}
-			queue += name;
-		}
-		imgui.doText(GEN_ID, Vector2(400, 582), queue, TF_SMALL_FONT | TF_ALIGN_CENTER);
-	}
+	if (running && KnockoutPlayer::freeNumber(mPlayers) != 0)
+		imgui.doText(GEN_ID, Vector2(400, 52), "press jump to join", TF_SMALL_FONT | TF_ALIGN_CENTER);
 
-	if (mMessageFrames > 0 && mWinnerSide == NO_PLAYER)
+	if (mMessageFrames > 0 && running)
 		imgui.doText(GEN_ID, Vector2(400, 110), mMessage, TF_ALIGN_CENTER);
 }
 

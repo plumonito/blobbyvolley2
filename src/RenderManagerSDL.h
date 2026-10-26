@@ -75,6 +75,8 @@ class RenderManagerSDL : public RenderManager
 		std::vector<SDL_Surface*> mStandardBlobShadow;
 		SDL_Surface* mStandardBlobBlood;
 		std::vector<DynamicColoredTexture> mLeftBlob;
+		/// blob textures of the waiting players, by colour
+		std::map<unsigned int, SDL_Texture*> mWaitingBlobTextures;
 		std::vector<DynamicColoredTexture> mLeftBlobShadow;
 		DynamicColoredTexture mLeftBlobBlood;
 
@@ -100,6 +102,8 @@ class RenderManagerSDL : public RenderManager
 		// colors a surface
 		// the returned SDL_Surface* is already converted into DisplayFormat
 		SDL_Surface* colorSurface(SDL_Surface *surface, Color color);
+		/// draws the blobs of the waiting players, see RenderManager::setWaitingBlobs
+		void drawWaitingBlobs();
 
 		void drawTextImpl(const std::string& text, Vector2 position, unsigned int flags);
 		void colorizeBlobs(int player, int frame);
