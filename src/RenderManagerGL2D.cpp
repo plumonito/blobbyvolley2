@@ -569,22 +569,22 @@ void RenderManagerGL2D::drawGame(const DuelMatchState& gameState)
 	glLoadIdentity();
 	drawQuad(400.0, 300.0, 1024.0, 1024.0);
 
-	// waiting players, half the size of the blobs on court
+	// waiting players
 	if (!mWaitingBlobs.empty())
 	{
 		glEnable(GL_ALPHA_TEST);
-		for (unsigned i = 0; i < mWaitingBlobs.size(); ++i)
+		for (const auto& blob : mWaitingBlobs)
 		{
-			Vector2 pos = getWaitingBlobPosition(i, mWaitingBlobs.size());
+			float size = 128.0 * blob.scale;
 			glBindTexture(mBlob[0]);
-			glColor3ub(mWaitingBlobs[i].r, mWaitingBlobs[i].g, mWaitingBlobs[i].b);
-			drawQuad(pos.x, pos.y, 64.0, 64.0);
+			glColor3ub(blob.color.r, blob.color.g, blob.color.b);
+			drawQuad(blob.position.x, blob.position.y, size, size);
 
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 			glColor4f(1.0, 1.0, 1.0, 1.0);
 			glBindTexture(mBlobSpecular[0]);
-			drawQuad(pos.x, pos.y, 64.0, 64.0);
+			drawQuad(blob.position.x, blob.position.y, size, size);
 			glDisable(GL_BLEND);
 		}
 		glDisable(GL_ALPHA_TEST);

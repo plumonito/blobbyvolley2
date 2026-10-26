@@ -18,12 +18,15 @@ Choose **knockout** in the main menu. Up to eight players share the two blobs:
 * Every connected gamepad and the two keyboard layouts (`W A S D` and the arrow keys)
   can join by pressing jump. Gamepad B or the keyboard's down key leaves again.
 * All players wait in one queue. The first two start on the left and right blob, the
-  others stand in line at the back of the beach, each in their own colour.
+  others wait at the back of the beach as small blobs in their own colour. While waiting
+  you can walk around and jump. The queue order is shown by depth: the next player stands
+  in front, everyone after them one row further back.
 * New players can join at any time during the match, also with gamepads plugged in
   while playing: press jump and you queue up last (up to 8 players per match).
-* As soon as you touch the ball, you go to the back of the queue and the next player
-  takes over your blob - on whichever side of the net it is. Gamepads vibrate briefly
-  when it is their player's turn.
+* You keep your blob while your side has the ball. Once you have touched it and it passes
+  the middle of the court, your turn is over: you walk back to the end of the queue and
+  the next player takes over your blob - on whichever side of the net it is. Gamepads
+  vibrate briefly when it is their player's turn.
 * When your side makes a mistake (ball on the ground, fourth touch, ...), you lose a life.
   Without lives left you are out. The number of lives (1-5) is set in the menu
   (click it, or press Y on a gamepad).

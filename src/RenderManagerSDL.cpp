@@ -636,19 +636,19 @@ void RenderManagerSDL::refresh()
 
 void RenderManagerSDL::drawWaitingBlobs()
 {
-	for (unsigned i = 0; i < mWaitingBlobs.size(); ++i)
+	for (const auto& blob : mWaitingBlobs)
 	{
-		SDL_Texture*& texture = mWaitingBlobTextures[mWaitingBlobs[i].toInt()];
+		SDL_Texture*& texture = mWaitingBlobTextures[blob.color.toInt()];
 		if (texture == nullptr)
 		{
-			SDL_Surface* surface = colorSurface(mStandardBlob[0], mWaitingBlobs[i]);
+			SDL_Surface* surface = colorSurface(mStandardBlob[0], blob.color);
 			texture = SDL_CreateTextureFromSurface(mRenderer, surface);
 			SDL_FreeSurface(surface);
 		}
 
-		// half the size of the blobs on court
-		Vector2 centre = getWaitingBlobPosition(i, mWaitingBlobs.size());
-		SDL_Rect position = { (int)lround(centre.x) - 19, (int)lround(centre.y) - 22, 37, 44 };
+		int width = (int)lround(75 * blob.scale);
+		int height = (int)lround(89 * blob.scale);
+		SDL_Rect position = { (int)lround(blob.position.x) - width / 2, (int)lround(blob.position.y) - height / 2, width, height };
 		SDL_RenderCopy(mRenderer, texture, nullptr, &position);
 	}
 }

@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 #include "BlobbyApp.h"
 #include "DuelMatch.h"
+#include "GameConstants.h"
 #include "IMGUI.h"
 #include "InputDevice.h"
 #include "InputManager.h"
@@ -87,6 +88,7 @@ void KnockoutGameState::init()
 					   PlayerIdentity(right.getName(), right.getColor(), false, RIGHT_PLAYER));
 	mMatch->setInputSources(mCourtInputs[LEFT_PLAYER], mCourtInputs[RIGHT_PLAYER]);
 	showPlayersOnCourt();
+	mWaiting.setQueue(mQueue.getWaiting());
 
 	mRecorder->setPlayerNames(left.getName(), right.getName());
 	mRecorder->setPlayerColors( left.getColor(), right.getColor() );
@@ -163,6 +165,7 @@ void KnockoutGameState::step_impl()
 		mRecorder->record(mMatch->getState());
 		mMatch->step();
 		updateKnockout();
+		stepWaitingPlayers();
 
 		int winner = mQueue.getWinner();
 		if (winner != -1)
@@ -186,6 +189,7 @@ void KnockoutGameState::updateKnockout()
 {
 	bool touched[MAX_PLAYERS];
 	bool error[MAX_PLAYERS] = {false, false};
+	bool ballReset = false;
 
 	for (PlayerSide side : {LEFT_PLAYER, RIGHT_PLAYER})
 	{
@@ -200,18 +204,43 @@ void KnockoutGameState::updateKnockout()
 	{
 		if (event.event == MatchEvent::PLAYER_ERROR && event.side != NO_PLAYER)
 			error[event.side] = true;
+		if (event.event == MatchEvent::RESET_BALL)
+			ballReset = true;
 	}
 
-	if (!mQueue.update(touched, error))
-		return;
+	bool turnOver[MAX_PLAYERS];
+	bool rallyRunning = !mMatch->getBallDown() && !ballReset;
+	mTurns.update(touched, mMatch->getBallPosition().x, rallyRunning, turnOver);
 
-	for (int player : mQueue.getKnockedOut())
+	const int onCourt[MAX_PLAYERS] = {mQueue.getActive(LEFT_PLAYER), mQueue.getActive(RIGHT_PLAYER)};
+	if (mQueue.update(turnOver, error))
 	{
-		mMessage = mPlayers[player].getName() + " is out!";
-		mMessageFrames = MESSAGE_FRAMES;
+		// players who leave the court walk back to the queue from where their blob was
+		for (PlayerSide side : {LEFT_PLAYER, RIGHT_PLAYER})
+		{
+			int player = onCourt[side];
+			if (mQueue.getActive(side) != player && !mQueue.isKnockedOut(player))
+				mWaiting.arrive(player, mMatch->getBlobPosition(side).x);
+		}
+
+		for (int player : mQueue.getKnockedOut())
+		{
+			mMessage = mPlayers[player].getName() + " is out!";
+			mMessageFrames = MESSAGE_FRAMES;
+		}
+
+		showPlayersOnCourt();
 	}
 
-	showPlayersOnCourt();
+	// also picks up players who just joined
+	mWaiting.setQueue(mQueue.getWaiting());
+}
+
+void KnockoutGameState::stepWaitingPlayers()
+{
+	mWaiting.step([&](int player) {
+		return mPlayerInputs[player]->updateInput().toPlayerInput(mMatch.get());
+	});
 }
 
 void KnockoutGameState::handleJoins(const LocalControllerWatcher::Presses& presses)
@@ -280,30 +309,31 @@ std::string KnockoutGameState::getCourtName(int player) const
 
 void KnockoutGameState::presentKnockoutUI()
 {
-	const auto& waiting = mQueue.getWaiting();
 	const bool running = mWinnerSide == NO_PLAYER;
 
-	// the waiting players stand in line at the back of the beach
-	std::vector<Color> waitingColors;
+	// the waiting players walk around at the back of the beach, the next one in front
+	std::vector<WaitingPlayers::View> waiting;
+	std::vector<RenderManager::WaitingBlob> waitingBlobs;
 	if (running)
 	{
-		for (int player : waiting)
-			waitingColors.push_back(mPlayers[player].getColor());
+		waiting = mWaiting.getViews();
+		for (const auto& view : waiting)
+			waitingBlobs.push_back(RenderManager::WaitingBlob{view.position, view.scale, mPlayers[view.player].getColor()});
 	}
 
 	RenderManager& renderer = getApp().getRenderManager();
-	renderer.setWaitingBlobs(waitingColors);
+	renderer.setWaitingBlobs(waitingBlobs);
 	renderer.drawGame(mMatch->getState());
 	renderer.setWaitingBlobs({});
 
 	auto& imgui = getIMGUI();
 
-	for (unsigned i = 0; i < waitingColors.size(); ++i)
+	for (const auto& view : waiting)
 	{
-		Vector2 position = RenderManager::getWaitingBlobPosition(i, waitingColors.size());
-		imgui.doText(GEN_ID, position - Vector2(0, 40), std::to_string(mPlayers[waiting[i]].number), TF_SMALL_FONT | TF_ALIGN_CENTER);
-		if (i == 0)
-			imgui.doText(GEN_ID, position - Vector2(24, 6), "next", TF_SMALL_FONT | TF_ALIGN_RIGHT);
+		Vector2 top = view.position - Vector2(0, BLOBBY_HEIGHT * view.scale / 2 + 14);
+		imgui.doText(GEN_ID, top, std::to_string(mPlayers[view.player].number), TF_SMALL_FONT | TF_ALIGN_CENTER);
+		if (view.player == mQueue.getWaiting().front())
+			imgui.doText(GEN_ID, top - Vector2(0, 14), "next", TF_SMALL_FONT | TF_ALIGN_CENTER);
 	}
 
 	imgui.doText(GEN_ID, Vector2(24, 24), std::to_string(mQueue.getRemaining()) + " left");

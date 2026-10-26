@@ -4,16 +4,18 @@
 #include <random>
 
 #include "KnockoutQueue.h"
+#include "KnockoutTurns.h"
+#include "WaitingPlayers.h"
 #include "GameLogic.h"
 #include "DuelMatchState.h"
 
 namespace
 {
-	void touch(KnockoutQueue& queue, PlayerSide side)
+	void endTurn(KnockoutQueue& queue, PlayerSide side)
 	{
-		bool touched[MAX_PLAYERS] = {side == LEFT_PLAYER, side == RIGHT_PLAYER};
+		bool turnOver[MAX_PLAYERS] = {side == LEFT_PLAYER, side == RIGHT_PLAYER};
 		bool error[MAX_PLAYERS] = {false, false};
-		queue.update(touched, error);
+		queue.update(turnOver, error);
 	}
 
 	void mistake(KnockoutQueue& queue, PlayerSide side)
@@ -42,20 +44,20 @@ BOOST_AUTO_TEST_CASE( start_positions )
 	BOOST_CHECK_EQUAL(queue.getWinner(), -1);
 }
 
-BOOST_AUTO_TEST_CASE( touch_passes_blob_to_next_in_queue )
+BOOST_AUTO_TEST_CASE( finished_turn_passes_blob_to_next_in_queue )
 {
 	KnockoutQueue queue(4, 1);
 
-	touch(queue, LEFT_PLAYER);
+	endTurn(queue, LEFT_PLAYER);
 	BOOST_CHECK_EQUAL(queue.getActive(LEFT_PLAYER), 2);
 	BOOST_CHECK(queue.getWaiting() == std::deque<int>({3, 0}));
 
 	// players take over whichever side becomes free
-	touch(queue, RIGHT_PLAYER);
+	endTurn(queue, RIGHT_PLAYER);
 	BOOST_CHECK_EQUAL(queue.getActive(RIGHT_PLAYER), 3);
 	BOOST_CHECK(queue.getWaiting() == std::deque<int>({0, 1}));
 
-	touch(queue, RIGHT_PLAYER);
+	endTurn(queue, RIGHT_PLAYER);
 	BOOST_CHECK_EQUAL(queue.getActive(RIGHT_PLAYER), 0);	// player 0 now plays on the right
 	BOOST_CHECK(queue.getWaiting() == std::deque<int>({1, 3}));
 }
@@ -63,8 +65,8 @@ BOOST_AUTO_TEST_CASE( touch_passes_blob_to_next_in_queue )
 BOOST_AUTO_TEST_CASE( two_players_stay_on_court )
 {
 	KnockoutQueue queue(2, 1);
-	touch(queue, LEFT_PLAYER);
-	touch(queue, RIGHT_PLAYER);
+	endTurn(queue, LEFT_PLAYER);
+	endTurn(queue, RIGHT_PLAYER);
 	BOOST_CHECK_EQUAL(queue.getActive(LEFT_PLAYER), 0);
 	BOOST_CHECK_EQUAL(queue.getActive(RIGHT_PLAYER), 1);
 }
@@ -82,7 +84,7 @@ BOOST_AUTO_TEST_CASE( mistake_knocks_player_out )
 	BOOST_CHECK_EQUAL(queue.getWinner(), -1);
 
 	// the last two players stay on court
-	touch(queue, RIGHT_PLAYER);
+	endTurn(queue, RIGHT_PLAYER);
 	BOOST_CHECK_EQUAL(queue.getActive(RIGHT_PLAYER), 1);
 	BOOST_CHECK(queue.getKnockedOut().empty());
 
@@ -110,14 +112,13 @@ BOOST_AUTO_TEST_CASE( lives )
 	BOOST_CHECK_EQUAL(queue.getRemaining(), 2);
 }
 
-// the fourth touch of a side is a fault: it counts as the touch and the mistake of
-// the same player, who must not leave the court twice
-BOOST_AUTO_TEST_CASE( faulty_touch )
+// a mistake in the same frame in which the turn ends: the player must not leave twice
+BOOST_AUTO_TEST_CASE( mistake_and_turn_over_together )
 {
 	KnockoutQueue queue(4, 2);
-	bool touched[MAX_PLAYERS] = {true, false};
+	bool turnOver[MAX_PLAYERS] = {true, false};
 	bool error[MAX_PLAYERS] = {true, false};
-	queue.update(touched, error);
+	queue.update(turnOver, error);
 
 	BOOST_CHECK_EQUAL(queue.getLives(0), 1);
 	BOOST_CHECK_EQUAL(queue.getActive(LEFT_PLAYER), 2);
@@ -133,7 +134,7 @@ BOOST_AUTO_TEST_CASE( join_during_match )
 	BOOST_CHECK_EQUAL(queue.getRemaining(), 3);
 
 	// the new player takes over the next blob that becomes free
-	touch(queue, RIGHT_PLAYER);
+	endTurn(queue, RIGHT_PLAYER);
 	BOOST_CHECK_EQUAL(queue.getActive(RIGHT_PLAYER), 2);
 	BOOST_CHECK(queue.getWaiting() == std::deque<int>({1}));
 }
@@ -146,7 +147,7 @@ BOOST_AUTO_TEST_CASE( join_after_last_two_remain )
 
 	BOOST_CHECK_EQUAL(queue.addPlayer(1), 3);
 	BOOST_CHECK_EQUAL(queue.getRemaining(), 3);
-	touch(queue, LEFT_PLAYER);			// player 2 makes room for the newcomer
+	endTurn(queue, LEFT_PLAYER);			// player 2 makes room for the newcomer
 	BOOST_CHECK_EQUAL(queue.getActive(LEFT_PLAYER), 3);
 	BOOST_CHECK(queue.getWaiting() == std::deque<int>({2}));
 }
@@ -179,7 +180,7 @@ BOOST_AUTO_TEST_CASE( random_matches_have_one_winner )
 				else if (random() % 5 == 0)
 					mistake(queue, side);
 				else
-					touch(queue, side);
+					endTurn(queue, side);
 
 				BOOST_REQUIRE_NE(queue.getActive(LEFT_PLAYER), queue.getActive(RIGHT_PLAYER));
 				if (queue.getWinner() == -1)
@@ -222,6 +223,176 @@ BOOST_AUTO_TEST_CASE( game_logic_reports_valid_touches )
 	BOOST_CHECK(logic->onBallHitsPlayer(LEFT_PLAYER));		// fourth touch
 	BOOST_CHECK_EQUAL(logic->getLastErrorSide(), LEFT_PLAYER);
 	BOOST_CHECK_EQUAL(logic->getTouches(LEFT_PLAYER), 0);	// why the touch counter cannot be used
+}
+
+// ---------------------------------------------------------------------------------------
+// turns
+// ---------------------------------------------------------------------------------------
+
+namespace
+{
+	struct TurnFixture
+	{
+		TurnTracker tracker;
+		bool turnOver[MAX_PLAYERS] = {false, false};
+
+		// one frame, returns whether any turn ended
+		bool frame(float ballX, bool touchLeft = false, bool touchRight = false, bool rally = true)
+		{
+			bool touched[MAX_PLAYERS] = {touchLeft, touchRight};
+			tracker.update(touched, ballX, rally, turnOver);
+			return turnOver[LEFT_PLAYER] || turnOver[RIGHT_PLAYER];
+		}
+	};
+}
+
+BOOST_FIXTURE_TEST_CASE( turn_ends_when_ball_passes_net_after_touch, TurnFixture )
+{
+	BOOST_CHECK(!frame(200));
+	BOOST_CHECK(!frame(200, true));		// a touch alone does not end the turn
+	BOOST_CHECK(!frame(300));
+	BOOST_CHECK(!frame(400));			// above the net
+	BOOST_CHECK(frame(450));			// passed to the right
+	BOOST_CHECK(turnOver[LEFT_PLAYER]);
+	BOOST_CHECK(!turnOver[RIGHT_PLAYER]);
+	BOOST_CHECK(!frame(500));			// only once
+}
+
+BOOST_FIXTURE_TEST_CASE( several_touches_one_turn, TurnFixture )
+{
+	frame(600, false, true);
+	frame(600, false, true);
+	frame(600, false, true);
+	BOOST_CHECK(frame(300));
+	BOOST_CHECK(turnOver[RIGHT_PLAYER]);
+}
+
+BOOST_FIXTURE_TEST_CASE( ball_falling_back_from_net_keeps_turn, TurnFixture )
+{
+	frame(200, true);
+	BOOST_CHECK(!frame(390));
+	BOOST_CHECK(!frame(420));			// touches the net on the other side, but comes back
+	BOOST_CHECK(!frame(300));
+	BOOST_CHECK(frame(500));			// the next attempt goes over
+	BOOST_CHECK(turnOver[LEFT_PLAYER]);
+}
+
+BOOST_FIXTURE_TEST_CASE( ball_passing_untouched_ends_no_turn, TurnFixture )
+{
+	frame(600);
+	BOOST_CHECK(!frame(200));
+}
+
+BOOST_FIXTURE_TEST_CASE( touch_in_the_frame_the_ball_passes, TurnFixture )
+{
+	frame(330);
+	BOOST_CHECK(frame(460, true));
+	BOOST_CHECK(turnOver[LEFT_PLAYER]);
+}
+
+BOOST_FIXTURE_TEST_CASE( no_turns_while_ball_is_dead, TurnFixture )
+{
+	frame(200, true);
+	BOOST_CHECK(!frame(600, false, false, false));	// rolling over after the point
+	BOOST_CHECK(!frame(200, false, false, false));
+	// new serve on the right: the reset position must not count as a pass
+	BOOST_CHECK(!frame(650));
+	BOOST_CHECK(!frame(650, false, true));
+	BOOST_CHECK(frame(150));
+	BOOST_CHECK(turnOver[RIGHT_PLAYER]);
+}
+
+// ---------------------------------------------------------------------------------------
+// waiting players
+// ---------------------------------------------------------------------------------------
+
+namespace
+{
+	PlayerInput noInput(int) { return PlayerInput(); }
+
+	const WaitingPlayers::View& viewOf(const std::vector<WaitingPlayers::View>& views, int player)
+	{
+		for (const auto& view : views)
+		{
+			if (view.player == player)
+				return view;
+		}
+		BOOST_FAIL("player not shown");
+		return views.front();
+	}
+}
+
+BOOST_AUTO_TEST_CASE( waiting_players_ordered_by_depth )
+{
+	WaitingPlayers waiting;
+	waiting.setQueue({3, 1, 2});
+
+	auto views = waiting.getViews();
+	BOOST_REQUIRE_EQUAL(views.size(), 3u);
+	// drawn from the back to the front: the next player last, on top
+	BOOST_CHECK_EQUAL(views[0].player, 2);
+	BOOST_CHECK_EQUAL(views[1].player, 1);
+	BOOST_CHECK_EQUAL(views[2].player, 3);
+	// rows further back are higher on screen and smaller
+	BOOST_CHECK_GT(views[2].scale, views[1].scale);
+	BOOST_CHECK_GT(views[1].scale, views[0].scale);
+	BOOST_CHECK_GT(WaitingPlayers::getRowGround(0), WaitingPlayers::getRowGround(1));
+}
+
+BOOST_AUTO_TEST_CASE( waiting_players_walk_and_jump )
+{
+	WaitingPlayers waiting;
+	waiting.setQueue({0});
+	Vector2 start = waiting.getViews()[0].position;
+
+	for (int i = 0; i < 10; ++i)
+		waiting.step([](int) { return PlayerInput(false, true, false); });
+	BOOST_CHECK_GT(waiting.getViews()[0].position.x, start.x + 20);
+
+	for (int i = 0; i < 1000; ++i)
+		waiting.step([](int) { return PlayerInput(true, false, false); });
+	float leftmost = waiting.getViews()[0].position.x;
+	BOOST_CHECK_GT(leftmost, 0);							// stays on screen
+
+	waiting.step([](int) { return PlayerInput(false, false, true); });
+	float highest = waiting.getViews()[0].position.y;
+	for (int i = 0; i < 10; ++i)
+	{
+		waiting.step(noInput);
+		highest = std::min(highest, waiting.getViews()[0].position.y);
+	}
+	BOOST_CHECK_LT(highest, start.y - 30);					// jumped
+	for (int i = 0; i < 100; ++i)
+		waiting.step(noInput);
+	BOOST_CHECK_CLOSE(waiting.getViews()[0].position.y, start.y, 0.01);	// and landed
+	BOOST_CHECK_EQUAL(waiting.getViews()[0].position.x, leftmost);
+}
+
+BOOST_AUTO_TEST_CASE( player_from_court_walks_to_the_back )
+{
+	WaitingPlayers waiting;
+	waiting.setQueue({1});
+	waiting.arrive(5, 300);
+	waiting.setQueue({1, 5});
+
+	// arrives in front of the queue at the position of their court blob
+	auto views = waiting.getViews();
+	BOOST_CHECK_EQUAL(views.back().player, 5);
+	BOOST_CHECK_EQUAL(viewOf(views, 5).position.x, 300);
+
+	for (int i = 0; i < 100; ++i)
+		waiting.step(noInput);
+	views = waiting.getViews();
+	BOOST_CHECK_EQUAL(views.front().player, 5);				// now behind player 1
+	BOOST_CHECK_CLOSE(viewOf(views, 5).scale, WaitingPlayers::getRowScale(1), 0.01);
+
+	// player 1 goes on court, player 5 moves up to the front row
+	waiting.setQueue({5});
+	for (int i = 0; i < 100; ++i)
+		waiting.step(noInput);
+	views = waiting.getViews();
+	BOOST_REQUIRE_EQUAL(views.size(), 1u);
+	BOOST_CHECK_CLOSE(views[0].scale, WaitingPlayers::getRowScale(0), 0.01);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

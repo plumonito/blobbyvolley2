@@ -35,6 +35,8 @@ set(common_SRC
 	GameLogicState.cpp GameLogicState.h
 	InputSource.cpp InputSource.h
 	KnockoutQueue.cpp KnockoutQueue.h
+	KnockoutTurns.cpp KnockoutTurns.h
+	WaitingPlayers.cpp WaitingPlayers.h
 	SwitchableInputSource.cpp SwitchableInputSource.h
 	PlayerInput.h PlayerInput.cpp
 	IScriptableComponent.cpp IScriptableComponent.h

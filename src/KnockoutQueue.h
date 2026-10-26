@@ -27,8 +27,9 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 /*! \class KnockoutQueue
 	\brief rules of a knockout match between several players who share the two blobs
 	\details All players wait in one queue. Two of them are on court, one on each side.
-			When the player on a side touches the ball, they go to the back of the queue and the
-			first waiting player takes over that blob, no matter which side it is on.
+			When the turn of the player on a side is over (see TurnTracker), they go to the back
+			of the queue and the first waiting player takes over that blob, no matter which side
+			it is on.
 			When a side makes a mistake, the player on court there loses a life and leaves the
 			court as well; without lives left, they are knocked out instead of queueing up again.
 			Once nobody is waiting, the last two players stay on court until one of them is out.
@@ -43,10 +44,10 @@ class KnockoutQueue
 		KnockoutQueue(int playerCount, int lives);
 
 		/// applies the events of one frame of the match
-		/// \param touched for each side, whether its player validly touched the ball
+		/// \param turnOver for each side, whether the turn of its player is over
 		/// \param error for each side, whether it made a mistake
 		/// \return true if the players on court or their lives changed
-		bool update(const bool touched[MAX_PLAYERS], const bool error[MAX_PLAYERS]);
+		bool update(const bool turnOver[MAX_PLAYERS], const bool error[MAX_PLAYERS]);
 
 		/// a new player joins the match and waits at the end of the queue
 		/// \return the index of the new player, or -1 if the match is already decided

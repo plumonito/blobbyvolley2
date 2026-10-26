@@ -129,11 +129,15 @@ class RenderManager : public ObjectCounter<RenderManager>
 
 		void setMouseMarker(float position);
 
-		// Players waiting for their turn (knockout mode), in queue order. drawGame shows
-		// them as small blobs in these colours at the back of the beach.
-		void setWaitingBlobs(std::vector<Color> colors);
-		// Centre of a waiting blob, the first one is next in line
-		static Vector2 getWaitingBlobPosition(unsigned index, unsigned count);
+		// Players waiting for their turn (knockout mode): drawGame draws these blobs
+		// behind everything else, in the given order
+		struct WaitingBlob
+		{
+			Vector2 position;	// centre
+			float scale;		// size relative to a blob on court
+			Color color;
+		};
+		void setWaitingBlobs(std::vector<WaitingBlob> blobs);
 
 		// This simply draws the given text with its top left corner at the
 		// given position and doesn't care about line feeds.
@@ -188,7 +192,7 @@ class RenderManager : public ObjectCounter<RenderManager>
 
 		float mMouseMarkerPosition;
 
-		std::vector<Color> mWaitingBlobs;
+		std::vector<WaitingBlob> mWaitingBlobs;
 
 	private:
 		std::unique_ptr<BloodManager> mBloodMgr;

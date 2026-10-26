@@ -36,7 +36,7 @@ KnockoutQueue::KnockoutQueue(int playerCount, int lives) : mLives(playerCount, l
 		mWaiting.push_back(player);
 }
 
-bool KnockoutQueue::update(const bool touched[MAX_PLAYERS], const bool error[MAX_PLAYERS])
+bool KnockoutQueue::update(const bool turnOver[MAX_PLAYERS], const bool error[MAX_PLAYERS])
 {
 	mKnockedOut.clear();
 
@@ -49,7 +49,7 @@ bool KnockoutQueue::update(const bool touched[MAX_PLAYERS], const bool error[MAX
 	{
 		if (error[side])
 		{
-			// a faulty touch is handled here as well, so the player does not leave twice
+			// a mistake also ends the turn, so the player does not leave twice
 			int player = mActive[side];
 			--mLives[player];
 			if (isKnockedOut(player))
@@ -57,7 +57,7 @@ bool KnockoutQueue::update(const bool touched[MAX_PLAYERS], const bool error[MAX
 			leaveCourt(side);
 			changed = true;
 		}
-		else if (touched[side])
+		else if (turnOver[side])
 		{
 			changed = leaveCourt(side) || changed;
 		}

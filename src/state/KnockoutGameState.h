@@ -25,7 +25,9 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 #include "GameState.h"
 #include "KnockoutQueue.h"
+#include "KnockoutTurns.h"
 #include "LocalPlayers.h"
+#include "WaitingPlayers.h"
 
 class InputSource;
 class ReplayRecorder;
@@ -48,8 +50,10 @@ class KnockoutGameState : public GameState
 		const char* getStateName() const override;
 
 	private:
-		/// feeds the touches and mistakes of the last frame into the knockout rules
+		/// feeds the turns and mistakes of the last frame into the knockout rules
 		void updateKnockout();
+		/// lets the waiting players walk and jump
+		void stepWaitingPlayers();
 		/// lets controllers that pressed jump and are not part of the match yet join the queue
 		void handleJoins(const LocalControllerWatcher::Presses& presses);
 		bool hasJoined(const LocalController& controller) const;
@@ -67,6 +71,8 @@ class KnockoutGameState : public GameState
 		std::vector<KnockoutPlayer> mPlayers;
 		int mLives;
 		KnockoutQueue mQueue;
+		TurnTracker mTurns;
+		WaitingPlayers mWaiting;
 
 		std::vector<std::shared_ptr<InputSource>> mPlayerInputs;
 		std::shared_ptr<SwitchableInputSource> mCourtInputs[MAX_PLAYERS];

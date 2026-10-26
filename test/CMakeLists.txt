@@ -19,6 +19,8 @@ set(SRC
 	../src/GameLogic.cpp      ../src/GameLogic.h
 	../src/InputSource.cpp    ../src/InputSource.h
 	../src/KnockoutQueue.cpp ../src/KnockoutQueue.h
+	../src/KnockoutTurns.cpp ../src/KnockoutTurns.h
+	../src/WaitingPlayers.cpp ../src/WaitingPlayers.h
 	../src/IScriptableComponent.cpp ../src/IScriptableComponent.h
 	../src/PlayerIdentity.cpp ../src/PlayerIdentity.h
 	../src/UserConfig.cpp     ../src/UserConfig.h
