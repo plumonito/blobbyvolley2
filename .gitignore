@@ -40,3 +40,4 @@ src/blobby.nacp
 *.zip
 config.h
 test_compile
+build/

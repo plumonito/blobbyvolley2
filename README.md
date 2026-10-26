@@ -12,6 +12,25 @@ The "Dedicaded Server" runs with a Gamespeed of 100%, which means 75 FPS
 
 The Port for the Server is 1234.
 
+### Knockout (local party mode, up to 8 players)
+Choose **knockout** in the main menu. Up to eight players share the two blobs:
+
+* Every connected gamepad and the two keyboard layouts (`W A S D` and the arrow keys)
+  can join by pressing jump. Gamepad B or the keyboard's down key leaves again.
+* All players wait in one queue. The first two start on the left and right blob.
+* As soon as you touch the ball, you go to the back of the queue and the next player
+  takes over your blob - on whichever side of the net it is. Gamepads vibrate briefly
+  when it is their player's turn.
+* When your side makes a mistake (ball on the ground, fourth touch, ...), you lose a life.
+  Without lives left you are out. The number of lives (1-5) is set in the menu
+  (click it, or press Y on a gamepad).
+* The last player standing wins.
+
+Gamepads use the SDL GameController layout: move with the d-pad or left stick, jump with
+A, B or d-pad up, Start pauses / starts the match, Back returns to the main menu.
+Any controller SDL recognises as a gamepad works (Xbox, PlayStation, Switch Pro,
+8BitDo, ...). The game rules (`rules` setting) still decide what counts as a mistake.
+
 ### Source Code
 Clone the git repository:
 ```bash
@@ -38,6 +57,8 @@ pacman -S gcc cmake sdl2 boost physfs
 cmake .
 make
 ```
+(An out-of-source build works as well: `cmake -S . -B build && cmake --build build -j`,
+then start the game from the repository root with `build/src/blobby`.)
 3. Run:
 ```bash
 src/blobby

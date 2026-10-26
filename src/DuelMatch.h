@@ -82,6 +82,9 @@ class DuelMatch : public ObjectCounter<DuelMatch>
 		int getScoreToWin() const;
 		PlayerSide getServingPlayer() const;
 		int getTouches(PlayerSide player) const;
+		/// number of valid ball touches of a player since the match was created. Unlike
+		/// getTouches, this is never reset, not even when a touch was a fault.
+		int getTouchCount(PlayerSide player) const;
 
 		int getHitcount(PlayerSide player) const;
 
@@ -140,6 +143,8 @@ class DuelMatch : public ObjectCounter<DuelMatch>
 		PlayerInput mTransformedInput[MAX_PLAYERS];
 
 		PlayerIdentity mPlayers[MAX_PLAYERS];
+
+		int mTouchCount[MAX_PLAYERS] = {0, 0};
 
 		GameLogicPtr mLogic;
 

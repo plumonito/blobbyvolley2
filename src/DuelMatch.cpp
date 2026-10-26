@@ -110,7 +110,8 @@ void DuelMatch::step()
 		switch( event.event )
 		{
 			case MatchEvent::BALL_HIT_BLOB:
-				mLogic->onBallHitsPlayer( event.side );
+				if( mLogic->onBallHitsPlayer( event.side ) )
+					++mTouchCount[event.side];
 				break;
 			case MatchEvent::BALL_HIT_GROUND:
 				mLogic->onBallHitsGround( event.side );
@@ -196,6 +197,11 @@ int DuelMatch::getScore(PlayerSide player) const
 int DuelMatch::getTouches(PlayerSide player) const
 {
 	return mLogic->getTouches(player);
+}
+
+int DuelMatch::getTouchCount(PlayerSide player) const
+{
+	return mTouchCount[player];
 }
 
 

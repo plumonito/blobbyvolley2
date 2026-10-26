@@ -31,6 +31,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #include "NetworkState.h"
 #include "NetworkSearchState.h"
 #include "OptionsState.h"
+#include "KnockoutSetupState.h"
 
 #include "BlobbyApp.h"
 #include "SoundManager.h"
@@ -102,15 +103,15 @@ void MainMenuState::step_impl()
 	imgui.doImage(GEN_ID, Vector2(400.0, 300.0), "background");
 	imgui.doOverlay(GEN_ID, Vector2(0.0, 0.0), Vector2(800.0, 600.0));
 	imgui.doImage(GEN_ID, Vector2(400.0, 175.0), "gfx/titel.bmp");
-	if (imgui.doButton(GEN_ID, Vector2(34, 300.0), TextManager::MNU_LABEL_ONLINE))
+	if (imgui.doButton(GEN_ID, Vector2(34.0, 300.0), TextManager::MNU_LABEL_ONLINE))
 	{
 		switchState( new OnlineSearchState() );
 	}
-	if (imgui.doButton(GEN_ID, Vector2(34, 340.0), TextManager::MNU_LABEL_LAN))
+	if (imgui.doButton(GEN_ID, Vector2(34.0, 335.0), TextManager::MNU_LABEL_LAN))
 	{
 		switchState( new LANSearchState() );
 	}
-	if (imgui.doButton(GEN_ID, Vector2(34.0, 380.0), TextManager::MNU_LABEL_START))
+	if (imgui.doButton(GEN_ID, Vector2(34.0, 370.0), TextManager::MNU_LABEL_START))
 	{
 		try
 		{
@@ -125,22 +126,27 @@ void MainMenuState::step_impl()
 		}
 	}
 
-	if (imgui.doButton(GEN_ID, Vector2(34.0, 420.0), TextManager::MNU_LABEL_OPTIONS))
+	if (imgui.doButton(GEN_ID, Vector2(34.0, 405.0), "knockout"))
+	{
+		switchState(new KnockoutSetupState());
+	}
+
+	if (imgui.doButton(GEN_ID, Vector2(34.0, 440.0), TextManager::MNU_LABEL_OPTIONS))
 	{
 		switchState(new OptionState());
 	}
 
-	if (imgui.doButton(GEN_ID, Vector2(34.0, 460.0), TextManager::MNU_LABEL_REPLAY))
+	if (imgui.doButton(GEN_ID, Vector2(34.0, 475.0), TextManager::MNU_LABEL_REPLAY))
 	{
 		switchState(new ReplaySelectionState());
 	}
 
-	if (imgui.doButton(GEN_ID, Vector2(34.0, 500.0), TextManager::MNU_LABEL_CREDITS))
+	if (imgui.doButton(GEN_ID, Vector2(34.0, 510.0), TextManager::MNU_LABEL_CREDITS))
 	{
 		switchState(new CreditsState());
 	}
 
-	if (imgui.doButton(GEN_ID, Vector2(34.0, 540.0), TextManager::MNU_LABEL_EXIT))
+	if (imgui.doButton(GEN_ID, Vector2(34.0, 545.0), TextManager::MNU_LABEL_EXIT))
 	{
 		getInputMgr().setEndBlobby();
 	}

@@ -245,10 +245,10 @@ bool IGameLogic::isWallCollisionValid() const
 	return mSquishWall <= 0 && isBallValid();
 }
 
-void IGameLogic::onBallHitsPlayer(PlayerSide side)
+bool IGameLogic::onBallHitsPlayer(PlayerSide side)
 {
 	if(!isCollisionValid(side))
-		return;
+		return false;
 
 	// otherwise, set the squish value
 	mSquish[side2index(side)] = SQUISH_TOLERANCE;
@@ -265,6 +265,8 @@ void IGameLogic::onBallHitsPlayer(PlayerSide side)
 	// reset other players touches after OnBallHitsPlayerHandler is called, so
 	// we have still access to its old value inside the handler function
 	mTouches[side2index(other_side(side))] = 0;
+
+	return true;
 }
 
 void IGameLogic::onBallHitsWall(PlayerSide side)

@@ -18,6 +18,7 @@ set(SRC
 	../src/PhysicWorld.cpp    ../src/PhysicWorld.h 
 	../src/GameLogic.cpp      ../src/GameLogic.h
 	../src/InputSource.cpp    ../src/InputSource.h
+	../src/KnockoutQueue.cpp ../src/KnockoutQueue.h
 	../src/IScriptableComponent.cpp ../src/IScriptableComponent.h
 	../src/PlayerIdentity.cpp ../src/PlayerIdentity.h
 	../src/UserConfig.cpp     ../src/UserConfig.h
@@ -33,7 +34,7 @@ if ("${SDL2_LIBRARIES}" STREQUAL "")
 	set(SDL2_LIBRARIES "SDL2::SDL2")
 endif ("${SDL2_LIBRARIES}" STREQUAL "")
 
-add_executable(blobbytest GenericIOTest.cpp FileTest.cpp Base64Test.cpp ${SRC})
+add_executable(blobbytest GenericIOTest.cpp FileTest.cpp Base64Test.cpp KnockoutTest.cpp ${SRC})
 
 target_include_directories(blobbytest PRIVATE ${Boost_INCLUDE_DIR} ${PHYSFS_INCLUDE_DIR} ${SDL2_INCLUDE_DIRS} ../src)
 target_compile_definitions(blobbytest PRIVATE "BOOST_TEST_DYN_LINK=1")

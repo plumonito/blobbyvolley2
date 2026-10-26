@@ -21,8 +21,12 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #pragma once
 
 #include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include <SDL_keycode.h>
+#include <SDL_gamecontroller.h>
 
 #include "PlayerInput.h"
 #include "Vector.h"
@@ -93,7 +97,18 @@ class InputManager : public ObjectCounter<InputManager>
 		bool windowFocus() const;
 
 		SDL_Joystick* getJoystickById(int joyId);
+
+		// Gamepads (SDL GameController API), identified by their SDL joystick instance id.
+		// They are opened automatically when connected and listed in connection order.
+		std::vector<int> getGamepads() const;
+		std::string getGamepadName(int instanceId) const;
+		bool isGamepadButtonDown(int instanceId, SDL_GameControllerButton button) const;
+		int getGamepadAxis(int instanceId, SDL_GameControllerAxis axis) const;
+		/// lets the gamepad vibrate, if it supports that. strength is between 0 and 1.
+		void rumbleGamepad(int instanceId, float strength, int durationMs);
 	private:
+		SDL_GameController* findGamepad(int instanceId) const;
+
 		// Keyboard
 		//static InputKeyMap mKeyMap[];	// Type for String <-convert-> SDLKey
 
@@ -128,4 +143,5 @@ class InputManager : public ObjectCounter<InputManager>
 
 		BlobbyApp* mApp;
 		std::unique_ptr<JoystickPool> mJoystickPool;
+		std::vector<std::pair<int, SDL_GameController*>> mGamepads;
 };

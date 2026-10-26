@@ -116,7 +116,9 @@ class IGameLogic: public ObjectCounter<IGameLogic>
 		void onBallHitsGround(PlayerSide side);
 
 		/// called when ball hits player
-		void onBallHitsPlayer(PlayerSide side);
+		/// \return true if the hit counted as a touch of that player, false if it was ignored
+		///			because the ball is still in contact with the blob from a previous hit
+		bool onBallHitsPlayer(PlayerSide side);
 
 		/// called when ball hits wall
 		void onBallHitsWall(PlayerSide side);

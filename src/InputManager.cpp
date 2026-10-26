@@ -45,6 +45,10 @@ InputManager::InputManager(BlobbyApp* app) : mApp(app)
 	mJoystickPool = std::unique_ptr<JoystickPool>{new JoystickPool()};
 	mJoystickPool->probeJoysticks();
 
+	// gamepads: SDL reports already connected controllers as SDL_CONTROLLERDEVICEADDED events
+	SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER);
+	SDL_GameControllerEventState(SDL_ENABLE);
+
 	mRunning = true;
 	mWindowFocus = true;
 
@@ -54,7 +58,11 @@ InputManager::InputManager(BlobbyApp* app) : mApp(app)
 	mMouseCaptured = false;
 }
 
-InputManager::~InputManager() = default;
+InputManager::~InputManager()
+{
+	for (auto& pad : mGamepads)
+		SDL_GameControllerClose(pad.second);
+}
 
 std::unique_ptr<InputDevice> InputManager::beginGame(PlayerSide side)
 {
@@ -148,6 +156,30 @@ void InputManager::updateInput()
 				break;
 			case SDL_JOYDEVICEREMOVED:
 				mJoystickPool->closeJoystick(event.jdevice.which);
+				break;
+			case SDL_CONTROLLERDEVICEADDED:
+			{
+				SDL_GameController* pad = SDL_GameControllerOpen(event.cdevice.which);
+				if (pad != nullptr)
+				{
+					int instanceId = SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(pad));
+					if (findGamepad(instanceId) == nullptr)
+						mGamepads.emplace_back(instanceId, pad);
+					else
+						SDL_GameControllerClose(pad);	// already open, drop the extra reference
+				}
+				break;
+			}
+			case SDL_CONTROLLERDEVICEREMOVED:
+				for (auto it = mGamepads.begin(); it != mGamepads.end(); ++it)
+				{
+					if (it->first == event.cdevice.which)
+					{
+						SDL_GameControllerClose(it->second);
+						mGamepads.erase(it);
+						break;
+					}
+				}
 				break;
 			case SDL_KEYDOWN:
 				mLastActionKey = event.key.keysym.sym;
@@ -479,4 +511,52 @@ bool InputManager::isJoyActionActive(const JoystickAction& action) const
 		}
 	}
 	return false;
+}
+
+std::vector<int> InputManager::getGamepads() const
+{
+	std::vector<int> ids;
+	for (const auto& pad : mGamepads)
+		ids.push_back(pad.first);
+	return ids;
+}
+
+SDL_GameController* InputManager::findGamepad(int instanceId) const
+{
+	for (const auto& pad : mGamepads)
+	{
+		if (pad.first == instanceId)
+			return pad.second;
+	}
+	return nullptr;
+}
+
+std::string InputManager::getGamepadName(int instanceId) const
+{
+	SDL_GameController* pad = findGamepad(instanceId);
+	const char* name = pad ? SDL_GameControllerName(pad) : nullptr;
+	return name ? name : "";
+}
+
+bool InputManager::isGamepadButtonDown(int instanceId, SDL_GameControllerButton button) const
+{
+	SDL_GameController* pad = findGamepad(instanceId);
+	return pad != nullptr && SDL_GameControllerGetButton(pad, button) != 0;
+}
+
+int InputManager::getGamepadAxis(int instanceId, SDL_GameControllerAxis axis) const
+{
+	SDL_GameController* pad = findGamepad(instanceId);
+	return pad ? SDL_GameControllerGetAxis(pad, axis) : 0;
+}
+
+void InputManager::rumbleGamepad(int instanceId, float strength, int durationMs)
+{
+	SDL_GameController* pad = findGamepad(instanceId);
+	if (pad == nullptr)
+		return;
+
+	Uint16 intensity = (Uint16)(strength * 0xFFFF);
+	// fails silently for gamepads without rumble motors
+	SDL_GameControllerRumble(pad, intensity, intensity, durationMs);
 }

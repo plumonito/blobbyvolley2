@@ -34,6 +34,8 @@ set(common_SRC
 	DuelMatchState.cpp DuelMatchState.h
 	GameLogicState.cpp GameLogicState.h
 	InputSource.cpp InputSource.h
+	KnockoutQueue.cpp KnockoutQueue.h
+	SwitchableInputSource.cpp SwitchableInputSource.h
 	PlayerInput.h PlayerInput.cpp
 	IScriptableComponent.cpp IScriptableComponent.h
 	PlayerIdentity.cpp PlayerIdentity.h
@@ -57,6 +59,7 @@ set (blobby_SRC ${common_SRC} ${inputdevice_SRC}
 	RenderManagerSDL.cpp RenderManagerSDL.h
 	RenderManagerNull.cpp RenderManagerNull.h
 	ScriptedInputSource.cpp ScriptedInputSource.h
+	LocalPlayers.cpp LocalPlayers.h
 	SoundManager.cpp SoundManager.h
 	Vector.h
 	replays/ReplayPlayer.cpp replays/ReplayPlayer.h
@@ -64,12 +67,15 @@ set (blobby_SRC ${common_SRC} ${inputdevice_SRC}
 	state/State.cpp state/State.h
 	state/GameState.cpp state/GameState.h
 	state/LocalGameState.cpp state/LocalGameState.h
+	state/KnockoutGameState.cpp state/KnockoutGameState.h
+	state/KnockoutSetupState.cpp state/KnockoutSetupState.h
 	state/NetworkState.cpp state/NetworkState.h
 	state/OptionsState.cpp state/OptionsState.h
 	state/NetworkSearchState.cpp state/NetworkSearchState.h
 	state/ReplayState.cpp state/ReplayState.h
 	state/ReplaySelectionState.cpp state/ReplaySelectionState.h
 	state/LobbyStates.cpp state/LobbyStates.h
+	input_device/GamepadInput.cpp
 	input_device/JoystickInput.cpp
 	input_device/JoystickPool.cpp input_device/JoystickPool.h
 	input_device/KeyboardInput.cpp
