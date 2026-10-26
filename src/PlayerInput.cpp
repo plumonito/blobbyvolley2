@@ -25,7 +25,6 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #include <ostream>
 #include <cassert>
 
-#include "raknet/BitStream.h"
 
 #include "DuelMatch.h"
 #include "GameConstants.h"
@@ -55,12 +54,6 @@ unsigned char PlayerInput::getAll() const
 PlayerInputAbs::PlayerInputAbs() : mFlags( F_RELATIVE ), mTarget(-1)
 {
 
-}
-
-PlayerInputAbs::PlayerInputAbs(RakNet::BitStream& stream)
-{
-	stream.Read( mFlags );
-	stream.Read( mTarget );
 }
 
 PlayerInputAbs::PlayerInputAbs(bool l, bool r, bool j) : mFlags( F_RELATIVE ), mTarget(-1)
@@ -145,12 +138,6 @@ PlayerInput PlayerInputAbs::toPlayerInput( const DuelMatch* match ) const
 		return PlayerInput( left, right, mFlags & F_JUMP );
 	}
 
-}
-
-void PlayerInputAbs::writeTo(RakNet::BitStream& stream) const
-{
-	stream.Write( mFlags );
-	stream.Write( mTarget );
 }
 
 

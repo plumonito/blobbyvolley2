@@ -30,6 +30,8 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #include "IUserConfigReader.h"
 #include "IMGUI.h"
 #include "FileSystem.h"
+#include "InputManager.h"
+#include "RenderManager.h"
 
 /* implementation */
 void BlobbyApp::switchToState(std::unique_ptr<State> newState)
@@ -63,7 +65,6 @@ void BlobbyApp::step()
 		// if yes, set that new state
 		// use swap so the states do not get destroyed here
 		mCurrentState = std::move( mStateToSwitchTo );
-		mIMGUI->resetSelection();
 		mCurrentState->init();
 	}
 }
@@ -81,8 +82,7 @@ BlobbyApp::BlobbyApp(std::unique_ptr<State> initState, const IUserConfigReader& 
 	mSoundManager->playSound(SoundManager::IMPACT, 0.0);
 	mSoundManager->playSound(SoundManager::WHISTLE, 0.0);
 
-	mIMGUI.reset(new IMGUI(mInputMgr.get()));
-	mIMGUI->setTextMgr(config.getString("language"));
+	mIMGUI.reset(new IMGUI());
 
 	setupRenderManager(config);
 }
@@ -112,24 +112,10 @@ RenderManager& BlobbyApp::getRenderManager() const
 }
 
 void BlobbyApp::setupRenderManager(const IUserConfigReader& config) {
-	std::string device_name = config.getString("device");
-	if(device_name == "SDL")
-		mRenderMgr = RenderManager::createRenderManagerSDL();
-	else if (device_name == "OpenGL")
-		mRenderMgr = RenderManager::createRenderManagerGL2D();
-	else if (device_name == "Null")
-		mRenderMgr = RenderManager::createRenderManagerNull();
-	else
-	{
-		std::cerr << "Warning: Unknown renderer selected!";
-		std::cerr << "Falling back to SDL" << std::endl;
-		mRenderMgr = RenderManager::createRenderManagerSDL();
-	}
+	mRenderMgr.reset(new RenderManager());
 
 	bool fullscreen = config.getBool("fullscreen");
-	bool shadows = config.getBool("show_shadow");
 	mRenderMgr->init(BASE_RESOLUTION_X, BASE_RESOLUTION_Y, fullscreen);
-	mRenderMgr->showShadow(shadows);
 
 	std::string bg = std::string("backgrounds/") + config.getString("background");
 	if ( FileSystem::getSingleton().exists(bg) )

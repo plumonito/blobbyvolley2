@@ -23,23 +23,14 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #include "State.h"
 
 /* includes */
-#include <algorithm>
-#include <cstdio>
-
-#include "LocalGameState.h"
-#include "ReplaySelectionState.h"
-#include "NetworkState.h"
-#include "NetworkSearchState.h"
-#include "OptionsState.h"
-#include "KnockoutSetupState.h"
+#include <cassert>
 
 #include "BlobbyApp.h"
 #include "SoundManager.h"
 #include "IMGUI.h"
-#include "TextManager.h"
-#include "SpeedController.h"
 #include "InputManager.h"
-#include "IScriptableComponent.h"
+#include "RenderManager.h"
+#include "Theme.h"
 
 /* implementation */
 
@@ -54,8 +45,36 @@ bool State::is_exiting() const {
 	return getInputMgr().exit();
 }
 
-bool State::clicked() const {
-	return getInputMgr().click();
+void State::doHints(float y, const std::vector<Hint>& hints)
+{
+	const float buttonSize = 28;
+	const float gap = 8;
+	const float spacing = 26;
+	RenderManager& renderer = getRenderer();
+
+	// measure the row first, to centre it
+	std::vector<float> buttonWidths;
+	float width = 0;
+	for (const auto& hint : hints)
+	{
+		float buttonWidth = hint.button.size() == 1 ? buttonSize : renderer.getTextWidth(hint.button, TF_SMALL_FONT) + 20;
+		buttonWidths.push_back(buttonWidth);
+		width += buttonWidth + gap + renderer.getTextWidth(hint.label, TF_SMALL_FONT) + spacing;
+	}
+	float x = 400 - (width - spacing) / 2;
+
+	IMGUI& imgui = getIMGUI();
+	for (unsigned i = 0; i < hints.size(); ++i)
+	{
+		const Hint& hint = hints[i];
+		float alpha = hint.enabled ? 1 : 0.35;
+		imgui.doPanel(Vector2(x, y), Vector2(x + buttonWidths[i], y + buttonSize), hint.color, alpha, buttonSize / 2);
+		imgui.doText(Vector2(x + buttonWidths[i] / 2, y + 2), hint.button, TF_SMALL_FONT | TF_ALIGN_CENTER,
+				hint.enabled ? theme::TEXT : theme::TEXT_DIM);
+		x += buttonWidths[i] + gap;
+		imgui.doText(Vector2(x, y + 2), hint.label, TF_SMALL_FONT, hint.enabled ? theme::TEXT : theme::TEXT_DIM);
+		x += renderer.getTextWidth(hint.label, TF_SMALL_FONT) + spacing;
+	}
 }
 
 void State::setApp(BlobbyApp* app) {
@@ -83,139 +102,6 @@ InputManager& State::getInputMgr() const {
 	return getApp().getInputManager();
 }
 
-// --------------------------------------------------------------------------------------------------------------------------------
-//  concrete implementation of MainMenuState and CreditsState
-// -----------------------------------------------------------
-
-MainMenuState::MainMenuState()
-{
-	// set main menu fps
-	SpeedController::getMainInstance()->setGameSpeed(75);
+RenderManager& State::getRenderer() const {
+	return getApp().getRenderManager();
 }
-
-MainMenuState::~MainMenuState() = default;
-
-void MainMenuState::step_impl()
-{
-	IMGUI& imgui = getIMGUI();
-
-	imgui.doCursor();
-	imgui.doImage(GEN_ID, Vector2(400.0, 300.0), "background");
-	imgui.doOverlay(GEN_ID, Vector2(0.0, 0.0), Vector2(800.0, 600.0));
-	imgui.doImage(GEN_ID, Vector2(400.0, 175.0), "gfx/titel.bmp");
-	if (imgui.doButton(GEN_ID, Vector2(34.0, 300.0), TextManager::MNU_LABEL_ONLINE))
-	{
-		switchState( new OnlineSearchState() );
-	}
-	if (imgui.doButton(GEN_ID, Vector2(34.0, 335.0), TextManager::MNU_LABEL_LAN))
-	{
-		switchState( new LANSearchState() );
-	}
-	if (imgui.doButton(GEN_ID, Vector2(34.0, 370.0), TextManager::MNU_LABEL_START))
-	{
-		try
-		{
-			switchState(new LocalGameState());
-		}
-		catch (const ScriptException& except)
-		{
-			FILE* file = fopen("lualog.txt", "wb");
-			fprintf(file, "Lua Error: %s\n",
-				except.luaerror.c_str());
-			fclose(file);
-		}
-	}
-
-	if (imgui.doButton(GEN_ID, Vector2(34.0, 405.0), "knockout"))
-	{
-		switchState(new KnockoutSetupState());
-	}
-
-	if (imgui.doButton(GEN_ID, Vector2(34.0, 440.0), TextManager::MNU_LABEL_OPTIONS))
-	{
-		switchState(new OptionState());
-	}
-
-	if (imgui.doButton(GEN_ID, Vector2(34.0, 475.0), TextManager::MNU_LABEL_REPLAY))
-	{
-		switchState(new ReplaySelectionState());
-	}
-
-	if (imgui.doButton(GEN_ID, Vector2(34.0, 510.0), TextManager::MNU_LABEL_CREDITS))
-	{
-		switchState(new CreditsState());
-	}
-
-	if (imgui.doButton(GEN_ID, Vector2(34.0, 545.0), TextManager::MNU_LABEL_EXIT))
-	{
-		getInputMgr().setEndBlobby();
-	}
-}
-
-const char* MainMenuState::getStateName() const
-{
-	return "MainMenuState";
-}
-
-CreditsState::CreditsState()
-{
-	mYPosition = 600;
-}
-
-void CreditsState::step_impl()
-{
-	IMGUI& imgui = getIMGUI();
-	imgui.doCursor();
-	imgui.doImage(GEN_ID, Vector2(400.0, 300.0), "background");
-	imgui.doOverlay(GEN_ID, Vector2(0.0, 0.0), Vector2(800.0, 600.0));
-
-	const float xPosition = 50;
-
-	imgui.doText(GEN_ID, Vector2(xPosition, mYPosition), TextManager::CRD_PROGRAMMERS);
-	imgui.doText(GEN_ID, Vector2(xPosition, mYPosition+30), "Daniel Knobe");
-	imgui.doText(GEN_ID, Vector2(xPosition, mYPosition+60), "  (daniel-knobe(at)web.de)", TF_SMALL_FONT);
-	imgui.doText(GEN_ID, Vector2(xPosition, mYPosition+85), "Jonathan Sieber");
-	imgui.doText(GEN_ID, Vector2(xPosition, mYPosition+115), "  (jonathan_sieber(at)yahoo.de)", TF_SMALL_FONT);
-	imgui.doText(GEN_ID, Vector2(xPosition, mYPosition+140), "Erik Schultheis");
-	imgui.doText(GEN_ID, Vector2(xPosition, mYPosition+170), "  (erik-schultheis(at)freenet.de)", TF_SMALL_FONT);
-
-	imgui.doText(GEN_ID, Vector2(xPosition, mYPosition+210), TextManager::CRD_GRAPHICS);
-	imgui.doText(GEN_ID, Vector2(xPosition, mYPosition+240), "Silvio Mummert");
-	imgui.doText(GEN_ID, Vector2(xPosition, mYPosition+270), "  (mummertathome(at)t-online.de)", TF_SMALL_FONT);
-	imgui.doText(GEN_ID, Vector2(xPosition, mYPosition+295), "Richard Bertrand");
-	imgui.doText(GEN_ID, Vector2(xPosition, mYPosition+325), "  (ricbertrand(at)hotmail.com)", TF_SMALL_FONT);
-
-	imgui.doText(GEN_ID, Vector2(xPosition, mYPosition+365), TextManager::CRD_THX);
-	imgui.doText(GEN_ID, Vector2(xPosition, mYPosition+395), "Daniel Skoraszewsky");
-	imgui.doText(GEN_ID, Vector2(xPosition, mYPosition+425), "  (skoraszewsky(at)t-online.de)", TF_SMALL_FONT);
-
-	if (mYPosition > 20)
-		mYPosition -= 2.5;
-
-	if (imgui.doButton(GEN_ID, Vector2(74.0, 530.0), TextManager::LBL_OK))
-	{
-		switchState(new MainMenuState());
-	}
-
-#if SDL_VERSION_ATLEAST(2, 0, 14)
-	{
-		SDL_version linked;
-		SDL_GetVersion(&linked);
-
-		if (SDL_VERSIONNUM(linked.major, linked.minor, linked.patch) >=
-			SDL_VERSIONNUM(2, 0, 14))
-		{
-			if (imgui.doButton(GEN_ID, Vector2(294.0, 530.0), "www.blobbyvolley.de"))
-			{
-				SDL_OpenURL("https://www.blobbyvolley.de");
-			}
-		}
-	}
-#endif
-}
-
-const char* CreditsState::getStateName() const
-{
-	return "CreditsState";
-}
-

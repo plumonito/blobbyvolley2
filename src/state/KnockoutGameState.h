@@ -23,14 +23,16 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #include <string>
 #include <vector>
 
-#include "GameState.h"
+#include "State.h"
+#include "Global.h"
 #include "KnockoutQueue.h"
 #include "KnockoutTurns.h"
 #include "LocalPlayers.h"
+#include "SquishAnimation.h"
 #include "WaitingPlayers.h"
 
+class DuelMatch;
 class InputSource;
-class ReplayRecorder;
 class SwitchableInputSource;
 
 /*! \class KnockoutGameState
@@ -38,7 +40,7 @@ class SwitchableInputSource;
 	\details see KnockoutQueue for the rules. Controllers that are not playing yet can join
 			at any time by pressing jump.
 */
-class KnockoutGameState : public GameState
+class KnockoutGameState : public State
 {
 	public:
 		KnockoutGameState(std::vector<KnockoutPlayer> players, int lives);
@@ -57,16 +59,20 @@ class KnockoutGameState : public GameState
 		/// lets controllers that pressed jump and are not part of the match yet join the queue
 		void handleJoins(const LocalControllerWatcher::Presses& presses);
 		bool hasJoined(const LocalController& controller) const;
-		/// connects the blobs to the players on court and shows their names and colours
+		/// connects the blobs to the players on court and shows them
 		void showPlayersOnCourt();
 		/// tells a player that it is their turn by letting their gamepad vibrate
 		void announceTurn(int player);
-		/// name shown below the blob, with the remaining lives if there is more than one
-		std::string getCourtName(int player) const;
-		/// draws the game ui: time, players on court, queue and messages
-		void presentKnockoutUI();
-		/// true in the frame in which any gamepad of the players pressed start
-		bool gamepadStartPressed();
+		void showMessage(const std::string& text);
+		/// sounds of the last frame
+		void playSounds();
+
+		/// draws the match and the interface on top of it
+		void presentMatch();
+		void presentPause();
+		void presentWinner();
+		/// name tag of the player on court on one side
+		void doNameTag(PlayerSide side);
 
 		std::vector<KnockoutPlayer> mPlayers;
 		int mLives;
@@ -74,22 +80,26 @@ class KnockoutGameState : public GameState
 		TurnTracker mTurns;
 		WaitingPlayers mWaiting;
 
+		std::unique_ptr<DuelMatch> mMatch;
 		std::vector<std::shared_ptr<InputSource>> mPlayerInputs;
+		/// the look of every player's blob, see RenderManager::getBlobSkin
+		std::vector<int> mSkins;
 		std::shared_ptr<SwitchableInputSource> mCourtInputs[MAX_PLAYERS];
 		/// the players whose turn was announced last, to notice who has just come on court
 		int mAnnouncedOnCourt[MAX_PLAYERS] = {-1, -1};
 		int mLastTouchCount[MAX_PLAYERS] = {0, 0};
 
 		LocalControllerWatcher mControllers;
+		/// the enter key may still be held from the setup menu
+		bool mLastReturn = true;
 
-		/// e.g. "player 3 is out", shown for a moment
+		/// e.g. "Anna is out!", shown for a moment
 		std::string mMessage;
 		int mMessageFrames = 0;
 
-		/// the start button may still be held from the setup menu
-		bool mLastStartButton = true;
-
+		bool mPaused = false;
 		PlayerSide mWinnerSide = NO_PLAYER;
-
-		std::unique_ptr<ReplayRecorder> mRecorder;
+		/// the winner bounces on the winning screen
+		SquishAnimation mWinnerSquish;
+		int mWinnerFrames = 0;
 };

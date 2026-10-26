@@ -24,7 +24,6 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #include <iosfwd>
 
 #include "Global.h"
-#include "GenericIOFwd.h"
 
 struct GameLogicState
 {
@@ -44,8 +43,6 @@ struct GameLogicState
 
 	void swapSides();
 
-	void serialize(GenericOut* io) const;
-	void deserialize(GenericIn* io);
 };
 
 std::ostream& operator<<(std::ostream&, const GameLogicState&);

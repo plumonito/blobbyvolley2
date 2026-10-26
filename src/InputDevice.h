@@ -41,11 +41,5 @@ class InputDevice : public ObjectCounter<InputDevice>
 		InputManager* mInputManager;
 };
 
-struct JoystickAction;
-
-
 std::unique_ptr<InputDevice> createKeyboardInput(InputManager* inputMgr, SDL_Keycode left, SDL_Keycode right, SDL_Keycode jump);
-std::unique_ptr<InputDevice> createJoystickInput(InputManager* inputMgr, JoystickAction left, JoystickAction right, JoystickAction jump);
-std::unique_ptr<InputDevice> createTouchInput(InputManager* inputMgr, PlayerSide side, int type);
-std::unique_ptr<InputDevice> createMouseInput(InputManager* inputMgr, PlayerSide player, int jumpbutton, float sensitivity);
 std::unique_ptr<InputDevice> createGamepadInput(InputManager* inputMgr, int instanceId);

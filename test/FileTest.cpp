@@ -1,5 +1,6 @@
-//#define BOOST_TEST_MODULE FileAbstraction
-#include <boost/test/unit_test.hpp>
+#define BOOST_TEST_MODULE Blobby Tests
+// header-only Boost.Test: the test runner is compiled into this file
+#include <boost/test/included/unit_test.hpp>
 
 #include "FileRead.h"
 #include "FileWrite.h"

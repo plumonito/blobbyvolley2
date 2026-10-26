@@ -32,7 +32,6 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #include "Global.h"
 #include "FileRead.h"
 #include "FileWrite.h"
-#include "PlayerIdentity.h"
 #include "LocalInputSource.h"
 
 
@@ -60,36 +59,6 @@ std::shared_ptr<IUserConfigReader> IUserConfigReader::createUserConfigReader(con
 	userConfigCache()[file] = config;
 
 	return config;
-}
-
-PlayerIdentity UserConfig::loadPlayerIdentity(PlayerSide side, bool force_human) const
-{
-	std::string prefix = side == LEFT_PLAYER ? "left" : "right";
-	std::string name;
-	// init local input
-	if(force_human)
-	{
-		name = getString(prefix + "_player_name");
-	}
-	else
-	{
-		name = getBool(prefix + "_player_human") ?
-					getString(prefix + "_player_name") :
-					getString(prefix + "_script_name") + ".lua";
-	}
-
-	PlayerIdentity player = PlayerIdentity(name);
-
-	player.setStaticColor( Color(
-							getInteger(prefix + "_blobby_color_r"),
-							getInteger(prefix + "_blobby_color_g"),
-							getInteger(prefix + "_blobby_color_b")
-						) );
-
-	player.setOscillating(getBool(prefix + "_blobby_oscillate"));
-	player.setPreferredSide((PlayerSide)getInteger("network_side"));
-
-	return player;
 }
 
 bool UserConfig::loadFile(const std::string& filename)

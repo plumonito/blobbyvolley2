@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #include <vector>
 
 #include "Color.h"
+#include "PlayerProfile.h"
 
 class InputManager;
 class InputDevice;
@@ -62,6 +63,8 @@ struct LocalController
 */
 struct LocalControllerButtons
 {
+	bool left = false;
+	bool right = false;
 	bool jump = false;
 	bool leave = false;	///< keyboard: down, gamepad: B
 	bool lives = false;	///< change the number of lives, gamepad: Y
@@ -97,8 +100,11 @@ class LocalControllerWatcher
 struct KnockoutPlayer
 {
 	LocalController controller;
-	int number;	///< player number 1..KNOCKOUT_MAX_PLAYERS, determines name and colour
+	int number;	///< player number 1..KNOCKOUT_MAX_PLAYERS, determines the colour
+	std::string name;	///< from the profile, empty for an anonymous player
+	std::string face;	///< face image in the players folder, may be empty
 
+	/// the name of the profile, or "Player <number>"
 	std::string getName() const;
 	Color getColor() const;
 

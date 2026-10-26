@@ -42,6 +42,8 @@ namespace
 	const float WALK_SPEED = 3;
 	const float JUMP_SPEED = 9;
 	const float WAITING_GRAVITATION = 0.6;
+	/// landing faster than this squishes the blob
+	const float LANDING_SQUISH_SPEED = 2;
 	const float LEFT_BORDER = 40;
 	const float RIGHT_BORDER = 760;
 }
@@ -50,7 +52,7 @@ void WaitingPlayers::arrive(int player, float x)
 {
 	if (find(player) != nullptr)
 		return;
-	mBlobs.push_back(Blob{player, std::max(LEFT_BORDER, std::min(x, RIGHT_BORDER)), 0, 0, ARRIVAL_ROW, ARRIVAL_ROW});
+	mBlobs.push_back(Blob{player, std::max(LEFT_BORDER, std::min(x, RIGHT_BORDER)), 0, 0, ARRIVAL_ROW, ARRIVAL_ROW, SquishAnimation()});
 }
 
 void WaitingPlayers::setQueue(const std::deque<int>& queue)
@@ -66,7 +68,7 @@ void WaitingPlayers::setQueue(const std::deque<int>& queue)
 		{
 			// spread new players over the beach, so they do not stand on top of each other
 			float x = LEFT_BORDER + 80 + std::fmod(i * 150.f, RIGHT_BORDER - LEFT_BORDER - 160);
-			mBlobs.push_back(Blob{queue[i], x, 0, 0, (float)i, (float)i});
+			mBlobs.push_back(Blob{queue[i], x, 0, 0, (float)i, (float)i, SquishAnimation()});
 		}
 		else
 		{
@@ -87,9 +89,15 @@ void WaitingPlayers::step(const std::function<PlayerInput(int)>& input)
 			blob.x += WALK_SPEED;
 		blob.x = std::max(LEFT_BORDER, std::min(blob.x, RIGHT_BORDER));
 
+		// squish like the blobs on court: when jumping off, walking and landing hard
 		bool onGround = blob.height <= 0;
 		if (onGround && in.up)
+		{
 			blob.verticalSpeed = JUMP_SPEED;
+			blob.squish.start();
+		}
+		if (onGround && (in.left || in.right))
+			blob.squish.start();
 
 		if (!onGround || blob.verticalSpeed > 0)
 		{
@@ -97,10 +105,13 @@ void WaitingPlayers::step(const std::function<PlayerInput(int)>& input)
 			blob.verticalSpeed -= WAITING_GRAVITATION;
 			if (blob.height <= 0)
 			{
+				if (blob.verticalSpeed < -LANDING_SQUISH_SPEED)
+					blob.squish.start();
 				blob.height = 0;
 				blob.verticalSpeed = 0;
 			}
 		}
+		blob.squish.step();
 
 		if (std::abs(blob.targetRow - blob.row) <= ROW_CHANGE_SPEED)
 			blob.row = blob.targetRow;
@@ -119,7 +130,7 @@ std::vector<WaitingPlayers::View> WaitingPlayers::getViews() const
 	{
 		float scale = getRowScale(blob.row);
 		Vector2 centre(blob.x, getRowGround(blob.row) - blob.height - BLOBBY_HEIGHT * scale / 2);
-		views.push_back(View{blob.player, centre, scale});
+		views.push_back(View{blob.player, centre, scale, blob.squish.frame()});
 	}
 	return views;
 }

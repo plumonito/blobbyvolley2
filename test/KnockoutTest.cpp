@@ -6,6 +6,8 @@
 #include "KnockoutQueue.h"
 #include "KnockoutTurns.h"
 #include "WaitingPlayers.h"
+#include "PlayerProfile.h"
+#include "SquishAnimation.h"
 #include "GameLogic.h"
 #include "DuelMatchState.h"
 
@@ -393,6 +395,63 @@ BOOST_AUTO_TEST_CASE( player_from_court_walks_to_the_back )
 	views = waiting.getViews();
 	BOOST_REQUIRE_EQUAL(views.size(), 1u);
 	BOOST_CHECK_CLOSE(views[0].scale, WaitingPlayers::getRowScale(0), 0.01);
+}
+
+// ---------------------------------------------------------------------------------------
+// player profiles and squishing
+// ---------------------------------------------------------------------------------------
+
+BOOST_AUTO_TEST_CASE( profiles_are_parsed )
+{
+	auto profiles = PlayerProfile::parse(
+		"# the usual crowd\n"
+		"Anna;anna.png\n"
+		"\n"
+		"  Chlo\xc3\xa9 ; chloe face.jpg \r\n"
+		"Bruno\n"
+		";nameless.png\n");
+
+	BOOST_REQUIRE_EQUAL(profiles.size(), 3u);
+	BOOST_CHECK_EQUAL(profiles[0].name, "Anna");
+	BOOST_CHECK_EQUAL(profiles[0].face, "anna.png");
+	BOOST_CHECK_EQUAL(profiles[1].name, "Chlo\xc3\xa9");
+	BOOST_CHECK_EQUAL(profiles[1].face, "chloe face.jpg");
+	BOOST_CHECK_EQUAL(profiles[2].name, "Bruno");
+	BOOST_CHECK(profiles[2].face.empty());
+}
+
+BOOST_AUTO_TEST_CASE( squish_goes_down_and_back )
+{
+	SquishAnimation squish;
+	BOOST_CHECK_EQUAL(squish.frame(), 0);
+	squish.start();
+
+	int deepest = 0;
+	int frames = 0;
+	do
+	{
+		squish.step();
+		deepest = std::max(deepest, squish.frame());
+		++frames;
+	} while (squish.speed != 0 && frames < 100);
+
+	BOOST_CHECK_EQUAL(deepest, 4);
+	BOOST_CHECK_EQUAL(squish.frame(), 0);
+	BOOST_CHECK_LT(frames, 30);
+}
+
+BOOST_AUTO_TEST_CASE( waiting_blob_squishes_when_jumping )
+{
+	WaitingPlayers waiting;
+	waiting.setQueue({0});
+	waiting.step([](int) { return PlayerInput(false, false, true); });
+	int deepest = 0;
+	for (int i = 0; i < 6; ++i)
+	{
+		waiting.step(noInput);
+		deepest = std::max(deepest, waiting.getViews()[0].frame);
+	}
+	BOOST_CHECK_GT(deepest, 1);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

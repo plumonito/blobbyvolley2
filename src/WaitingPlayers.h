@@ -24,12 +24,13 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #include <vector>
 
 #include "PlayerInput.h"
+#include "SquishAnimation.h"
 #include "Vector.h"
 
 /*! \class WaitingPlayers
 	\brief the players of a knockout match who wait for their turn at the back of the beach
 	\details Every waiting player controls a small blob that walks and jumps, but does not
-			play the ball. The order of the queue is shown by depth: the next player stands
+			play the ball. Like on court, the blobs squish when they jump, walk and land. The order of the queue is shown by depth: the next player stands
 			in the front row, everyone after them one row further back. When the queue moves
 			on, the blobs move to their new rows smoothly.
 */
@@ -42,6 +43,7 @@ class WaitingPlayers
 			int player;
 			Vector2 position;	///< centre of the blob
 			float scale;		///< size relative to a blob on court
+			int frame;			///< squish animation frame
 		};
 
 		/// a player who left the court appears at this horizontal position, in front of the
@@ -71,6 +73,7 @@ class WaitingPlayers
 			float verticalSpeed;
 			float row;				///< current row, changes smoothly towards targetRow
 			float targetRow;
+			SquishAnimation squish;
 		};
 
 		Blob* find(int player);

@@ -23,8 +23,11 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 /* includes */
 #include <algorithm>
 
+#include <SDL.h>
+
 #include "BlobbyApp.h"
 #include "DuelMatch.h"
+#include "DuelMatchState.h"
 #include "GameConstants.h"
 #include "IMGUI.h"
 #include "InputDevice.h"
@@ -32,10 +35,12 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #include "IUserConfigReader.h"
 #include "KnockoutSetupState.h"
 #include "LocalInputSource.h"
-#include "replays/ReplayRecorder.h"
+#include "MatchEvents.h"
+#include "RenderManager.h"
 #include "SoundManager.h"
 #include "SpeedController.h"
 #include "SwitchableInputSource.h"
+#include "Theme.h"
 
 /* implementation */
 
@@ -43,7 +48,7 @@ namespace
 {
 	/// the knockout rules decide the winner, so the rule script must never end the match
 	const int KNOCKOUT_SCORE_TO_WIN = 999999;
-	/// how long "player x is out" is shown
+	/// how long "Anna is out!" is shown
 	const int MESSAGE_FRAMES = 150;
 	/// vibration of the gamepad of a player who has just taken over a blob
 	const float TURN_RUMBLE_STRENGTH = 0.75;
@@ -57,7 +62,6 @@ KnockoutGameState::KnockoutGameState(std::vector<KnockoutPlayer> players, int li
 	: mPlayers(std::move(players))
 	, mLives(lives)
 	, mQueue(mPlayers.size(), lives)
-	, mRecorder(new ReplayRecorder())
 {
 }
 
@@ -66,12 +70,6 @@ KnockoutGameState::~KnockoutGameState() = default;
 void KnockoutGameState::init()
 {
 	std::shared_ptr<IUserConfigReader> config = IUserConfigReader::createUserConfigReader("config.xml");
-
-	const KnockoutPlayer& left = mPlayers[mQueue.getActive(LEFT_PLAYER)];
-	const KnockoutPlayer& right = mPlayers[mQueue.getActive(RIGHT_PLAYER)];
-	setDefaultReplayName(left.getName(), right.getName());
-
-	// set speed
 	SpeedController::getMainInstance()->setGameSpeed( (float)config->getInteger("gamefps") );
 
 	playSound(SoundManager::WHISTLE, ROUND_START_SOUND_VOLUME);
@@ -79,111 +77,89 @@ void KnockoutGameState::init()
 	mMatch.reset(new DuelMatch( false, config->getString("rules"), KNOCKOUT_SCORE_TO_WIN ));
 
 	for (const auto& player : mPlayers)
+	{
 		mPlayerInputs.push_back(std::make_shared<LocalInputSource>(player.controller.createInputDevice(&getInputMgr())));
+		mSkins.push_back(getRenderer().getBlobSkin(player.getColor(), player.face));
+	}
 
 	mCourtInputs[LEFT_PLAYER] = std::make_shared<SwitchableInputSource>();
 	mCourtInputs[RIGHT_PLAYER] = std::make_shared<SwitchableInputSource>();
-
-	mMatch->setPlayers(PlayerIdentity(left.getName(), left.getColor(), false, LEFT_PLAYER),
-					   PlayerIdentity(right.getName(), right.getColor(), false, RIGHT_PLAYER));
 	mMatch->setInputSources(mCourtInputs[LEFT_PLAYER], mCourtInputs[RIGHT_PLAYER]);
 	showPlayersOnCourt();
 	mWaiting.setQueue(mQueue.getWaiting());
-
-	mRecorder->setPlayerNames(left.getName(), right.getName());
-	mRecorder->setPlayerColors( left.getColor(), right.getColor() );
-	mRecorder->setGameSpeed((float)config->getInteger("gamefps"));
-	mRecorder->setGameRules( config->getString("rules") );
 }
 
 void KnockoutGameState::step_impl()
 {
-	IMGUI& imgui = getIMGUI();
-
-	bool startPressed = gamepadStartPressed();
-	// polled every frame, so that presses are detected correctly after a pause
-	auto controllerPresses = mControllers.poll(getInputMgr());
-
-	if(!mErrorMessage.empty())
+	auto presses = mControllers.poll(getInputMgr());
+	bool startPressed = false, backPressed = false, leavePressed = false;
+	for (const auto& press : presses)
 	{
-		displayErrorMessageBox();
+		startPressed = startPressed || press.second.start;
+		backPressed = backPressed || press.second.back;
+		leavePressed = leavePressed || (press.second.leave && press.first.type == LocalController::GAMEPAD);
 	}
-	else if (mSaveReplay)
+	bool returnHeld = getInputMgr().isKeyPressed(SDLK_RETURN) || getInputMgr().isKeyPressed(SDLK_KP_ENTER);
+	bool returnPressed = returnHeld && !mLastReturn;
+	mLastReturn = returnHeld;
+	bool escapePressed = is_exiting();
+
+	if (mWinnerSide != NO_PLAYER)
 	{
-		if ( displaySaveReplayPrompt() )
+		if (startPressed || returnPressed)
+			switchState(new KnockoutGameState(mPlayers, mLives));
+		else if (leavePressed || backPressed || escapePressed)
+			switchState(new KnockoutSetupState(mPlayers, mLives));
+
+		++mWinnerFrames;
+		if (mWinnerFrames % 60 == 0)
+			mWinnerSquish.start();
+		mWinnerSquish.step();
+	}
+	else if (mPaused)
+	{
+		if (startPressed || returnPressed)
 		{
-			saveReplay( *mRecorder );
-		}
-	}
-	else if (mMatch->isPaused())
-	{
-		if (startPressed)
+			mPaused = false;
 			mMatch->unpause();
-
-		displayQueryPrompt(200,
-			TextManager::LBL_CONF_QUIT,
-			std::make_tuple(TextManager::LBL_YES, [&](){ switchState(new MainMenuState); }),
-			std::make_tuple(TextManager::LBL_NO,  [&](){ mMatch->unpause(); }),
-			std::make_tuple(TextManager::RP_SAVE, [&](){ mSaveReplay = true; imgui.resetSelection(); }));
-
-		imgui.doCursor();
-	}
-	else if (mWinnerSide != NO_PLAYER)
-	{
-		displayWinningPlayerScreen( mWinnerSide );
-		imgui.doText(GEN_ID, Vector2(500, 430), "gamepad start: play again", TF_SMALL_FONT | TF_ALIGN_CENTER);
-		if (startPressed)
-		{
-			switchState(new KnockoutGameState(mPlayers, mLives));
 		}
-		if (imgui.doButton(GEN_ID, Vector2(290, 340), TextManager::LBL_OK))
-		{
-			switchState(new MainMenuState());
-		}
-		if (imgui.doButton(GEN_ID, Vector2(370, 340), TextManager::GAME_TRY_AGAIN))
-		{
-			switchState(new KnockoutGameState(mPlayers, mLives));
-		}
-		if (imgui.doButton(GEN_ID, Vector2(610, 340), "players"))
+		else if (backPressed || escapePressed)
 		{
 			switchState(new KnockoutSetupState(mPlayers, mLives));
 		}
-		if (imgui.doButton(GEN_ID, Vector2(500, 390), TextManager::RP_SAVE, TF_ALIGN_CENTER))
-		{
-			mSaveReplay = true;
-			imgui.resetSelection();
-		}
 	}
-	else if (is_exiting() || startPressed)
+	else if (startPressed || escapePressed)
 	{
+		mPaused = true;
 		mMatch->pause();
 	}
 	else
 	{
-		handleJoins(controllerPresses);
+		handleJoins(presses);
 
-		mRecorder->record(mMatch->getState());
 		mMatch->step();
 		updateKnockout();
 		stepWaitingPlayers();
+		playSounds();
 
 		int winner = mQueue.getWinner();
 		if (winner != -1)
-		{
 			mWinnerSide = mQueue.getActive(LEFT_PLAYER) == winner ? LEFT_PLAYER : RIGHT_PLAYER;
-			mMatch->getPlayer(mWinnerSide).setName(mPlayers[winner].getName());
-			mRecorder->record(mMatch->getState());
-			mRecorder->finalize( mMatch->getScore(LEFT_PLAYER), mMatch->getScore(RIGHT_PLAYER) );
-		}
 
 		if (mMessageFrames > 0)
 			--mMessageFrames;
-
-		presentGame();
 	}
 
-	presentKnockoutUI();
+	presentMatch();
+	if (mWinnerSide != NO_PLAYER)
+		presentWinner();
+	else if (mPaused)
+		presentPause();
 }
+
+// -------------------------------------------------------------------------------------------------
+//		Rules
+// -------------------------------------------------------------------------------------------------
 
 void KnockoutGameState::updateKnockout()
 {
@@ -224,10 +200,7 @@ void KnockoutGameState::updateKnockout()
 		}
 
 		for (int player : mQueue.getKnockedOut())
-		{
-			mMessage = mPlayers[player].getName() + " is out!";
-			mMessageFrames = MESSAGE_FRAMES;
-		}
+			showMessage(mPlayers[player].getName() + " is out!");
 
 		showPlayersOnCourt();
 	}
@@ -256,11 +229,25 @@ void KnockoutGameState::handleJoins(const LocalControllerWatcher::Presses& press
 		if (number == 0 || mQueue.addPlayer(mLives) == -1)
 			continue;
 
-		mPlayers.push_back(KnockoutPlayer{controller, number});
-		mPlayerInputs.push_back(std::make_shared<LocalInputSource>(controller.createInputDevice(&getInputMgr())));
+		// latecomers get the first profile nobody plays with
+		KnockoutPlayer player{controller, number, "", ""};
+		for (const auto& profile : PlayerProfile::load())
+		{
+			bool taken = std::any_of(mPlayers.begin(), mPlayers.end(),
+					[&](const KnockoutPlayer& other) { return other.name == profile.name; });
+			if (!taken)
+			{
+				player.name = profile.name;
+				player.face = profile.face;
+				break;
+			}
+		}
 
-		mMessage = mPlayers.back().getName() + " joined";
-		mMessageFrames = MESSAGE_FRAMES;
+		mPlayers.push_back(player);
+		mPlayerInputs.push_back(std::make_shared<LocalInputSource>(controller.createInputDevice(&getInputMgr())));
+		mSkins.push_back(getRenderer().getBlobSkin(player.getColor(), player.face));
+
+		showMessage(player.getName() + " joined");
 		playSound(SoundManager::IMPACT, BALL_HIT_PLAYER_SOUND_VOLUME);
 		if (controller.type == LocalController::GAMEPAD)
 			getInputMgr().rumbleGamepad(controller.id, JOIN_RUMBLE_STRENGTH, JOIN_RUMBLE_MS);
@@ -279,16 +266,13 @@ void KnockoutGameState::showPlayersOnCourt()
 	{
 		int active = mQueue.getActive(side);
 		mCourtInputs[side]->setSource(mPlayerInputs[active]);
+		getRenderer().setBlobSkin(side, mSkins[active]);
 
 		if (active != mAnnouncedOnCourt[side] && mQueue.getWinner() == -1)
 		{
 			announceTurn(active);
 			mAnnouncedOnCourt[side] = active;
 		}
-
-		PlayerIdentity& identity = mMatch->getPlayer(side);
-		identity.setName(getCourtName(active));
-		identity.setStaticColor(mPlayers[active].getColor());
 	}
 }
 
@@ -299,15 +283,28 @@ void KnockoutGameState::announceTurn(int player)
 		getInputMgr().rumbleGamepad(controller.id, TURN_RUMBLE_STRENGTH, TURN_RUMBLE_MS);
 }
 
-std::string KnockoutGameState::getCourtName(int player) const
+void KnockoutGameState::showMessage(const std::string& text)
 {
-	std::string name = mPlayers[player].getName();
-	if (mLives > 1)
-		name += " (" + std::to_string(mQueue.getLives(player)) + ")";
-	return name;
+	mMessage = text;
+	mMessageFrames = MESSAGE_FRAMES;
 }
 
-void KnockoutGameState::presentKnockoutUI()
+void KnockoutGameState::playSounds()
+{
+	for (const auto& event : mMatch->getEvents())
+	{
+		if (event.event == MatchEvent::BALL_HIT_BLOB)
+			playSound(SoundManager::IMPACT, event.intensity + BALL_HIT_PLAYER_SOUND_VOLUME);
+		if (event.event == MatchEvent::PLAYER_ERROR)
+			playSound(SoundManager::WHISTLE, ROUND_START_SOUND_VOLUME);
+	}
+}
+
+// -------------------------------------------------------------------------------------------------
+//		Drawing
+// -------------------------------------------------------------------------------------------------
+
+void KnockoutGameState::presentMatch()
 {
 	const bool running = mWinnerSide == NO_PLAYER;
 
@@ -318,53 +315,120 @@ void KnockoutGameState::presentKnockoutUI()
 	{
 		waiting = mWaiting.getViews();
 		for (const auto& view : waiting)
-			waitingBlobs.push_back(RenderManager::WaitingBlob{view.position, view.scale, mPlayers[view.player].getColor()});
+			waitingBlobs.push_back(RenderManager::WaitingBlob{view.position, view.scale, mSkins[view.player], view.frame});
 	}
 
-	RenderManager& renderer = getApp().getRenderManager();
+	RenderManager& renderer = getRenderer();
 	renderer.setWaitingBlobs(waitingBlobs);
 	renderer.drawGame(mMatch->getState());
 	renderer.setWaitingBlobs({});
 
-	auto& imgui = getIMGUI();
+	IMGUI& imgui = getIMGUI();
 
+	// names over the waiting players
 	for (const auto& view : waiting)
 	{
-		Vector2 top = view.position - Vector2(0, BLOBBY_HEIGHT * view.scale / 2 + 14);
-		imgui.doText(GEN_ID, top, std::to_string(mPlayers[view.player].number), TF_SMALL_FONT | TF_ALIGN_CENTER);
+		Vector2 top = view.position - Vector2(0, BLOBBY_HEIGHT * view.scale / 2 + 22);
+		imgui.doText(top, mPlayers[view.player].getName(), TF_SMALL_FONT | TF_ALIGN_CENTER);
 		if (view.player == mQueue.getWaiting().front())
-			imgui.doText(GEN_ID, top - Vector2(0, 14), "next", TF_SMALL_FONT | TF_ALIGN_CENTER);
+		{
+			float width = renderer.getTextWidth("Next", TF_SMALL_FONT) + 16;
+			imgui.doPanel(top - Vector2(width / 2, 26), top + Vector2(width / 2, -2), theme::ACCENT, 1, 12);
+			imgui.doText(top - Vector2(0, 25), "Next", TF_SMALL_FONT | TF_ALIGN_CENTER);
+		}
 	}
 
-	imgui.doText(GEN_ID, Vector2(24, 24), std::to_string(mQueue.getRemaining()) + " left");
-	imgui.doText(GEN_ID, Vector2(400, 24), mMatch->getTimeString(), TF_ALIGN_CENTER);
+	// players left and time
+	std::string left = std::to_string(mQueue.getRemaining()) + " left";
+	float leftWidth = renderer.getTextWidth(left, TF_NORMAL);
+	imgui.doPanel(Vector2(12, 12), Vector2(12 + leftWidth + 28, 52), theme::PANEL, 0.75, 20);
+	imgui.doText(Vector2(26, 16), left, TF_NORMAL);
 
-	// players on court
-	if (running)
+	std::string time = mMatch->getTimeString();
+	float timeWidth = renderer.getTextWidth(time, TF_SMALL_FONT);
+	imgui.doPanel(Vector2(400 - timeWidth / 2 - 14, 12), Vector2(400 + timeWidth / 2 + 14, 42), theme::PANEL, 0.75, 15);
+	imgui.doText(Vector2(400, 16), time, TF_SMALL_FONT | TF_ALIGN_CENTER);
+
+	if (!running)
+		return;
+
+	if (KnockoutPlayer::freeNumber(mPlayers) != 0)
+		imgui.doText(Vector2(400, 48), "Press jump to join", TF_SMALL_FONT | TF_ALIGN_CENTER, theme::TEXT_DIM);
+
+	doNameTag(LEFT_PLAYER);
+	doNameTag(RIGHT_PLAYER);
+
+	if (mMessageFrames > 0)
 	{
-		imgui.doText(GEN_ID, Vector2(12, 550), mMatch->getPlayer(LEFT_PLAYER).getName());
-		imgui.doText(GEN_ID, Vector2(788, 550), mMatch->getPlayer(RIGHT_PLAYER).getName(), TF_ALIGN_RIGHT);
+		float width = renderer.getTextWidth(mMessage, TF_LARGE_FONT);
+		imgui.doPanel(Vector2(400 - width / 2 - 26, 94), Vector2(400 + width / 2 + 26, 160), theme::PANEL, 0.8, 33);
+		imgui.doText(Vector2(400, 100), mMessage, TF_LARGE_FONT | TF_ALIGN_CENTER);
 	}
-
-	if (running && KnockoutPlayer::freeNumber(mPlayers) != 0)
-		imgui.doText(GEN_ID, Vector2(400, 52), "press jump to join", TF_SMALL_FONT | TF_ALIGN_CENTER);
-
-	if (mMessageFrames > 0 && running)
-		imgui.doText(GEN_ID, Vector2(400, 110), mMessage, TF_ALIGN_CENTER);
 }
 
-bool KnockoutGameState::gamepadStartPressed()
+void KnockoutGameState::doNameTag(PlayerSide side)
 {
-	bool held = false;
-	for (const auto& player : mPlayers)
-	{
-		if (player.controller.type == LocalController::GAMEPAD)
-			held = held || getInputMgr().isGamepadButtonDown(player.controller.id, SDL_CONTROLLER_BUTTON_START);
-	}
+	IMGUI& imgui = getIMGUI();
+	int player = mQueue.getActive(side);
+	std::string name = mPlayers[player].getName();
 
-	bool pressed = held && !mLastStartButton;
-	mLastStartButton = held;
-	return pressed;
+	const float dot = 16;
+	const float pip = 10;
+	const float height = 40;
+	float width = 14 + dot + 10 + getRenderer().getTextWidth(name, TF_NORMAL) + 14;
+	if (mLives > 1)
+		width += 4 + mLives * (pip + 4);
+
+	float x = side == LEFT_PLAYER ? 12 : 788 - width;
+	const float y = 600 - 12 - height;
+	imgui.doPanel(Vector2(x, y), Vector2(x + width, y + height), theme::PANEL, 0.75, height / 2);
+	x += 14;
+	imgui.doPanel(Vector2(x, y + 12), Vector2(x + dot, y + 12 + dot), mPlayers[player].getColor(), 1, dot / 2);
+	x += dot + 10;
+	imgui.doText(Vector2(x, y + 4), name, TF_NORMAL);
+	x += getRenderer().getTextWidth(name, TF_NORMAL) + 4;
+
+	if (mLives > 1)
+	{
+		for (int i = 1; i <= mLives; ++i)
+		{
+			float top = y + (height - pip) / 2;
+			bool alive = i <= mQueue.getLives(player);
+			imgui.doPanel(Vector2(x, top), Vector2(x + pip, top + pip), alive ? theme::ACCENT : theme::TEXT_DIM, alive ? 1 : 0.3, pip / 2);
+			x += pip + 4;
+		}
+	}
+}
+
+void KnockoutGameState::presentPause()
+{
+	IMGUI& imgui = getIMGUI();
+	imgui.doPanel(Vector2(0, 0), Vector2(800, 600), theme::PANEL, 0.5, 0);
+	imgui.doPanel(Vector2(190, 200), Vector2(610, 380), theme::PANEL, 0.92, 28);
+	imgui.doText(Vector2(400, 222), "Paused", TF_LARGE_FONT | TF_ALIGN_CENTER);
+	doHints(296, { {"Start", theme::BUTTON_MENU, "Resume"}, {"Back", theme::BUTTON_MENU, "End match"} });
+	imgui.doText(Vector2(400, 340), "Keyboard:  Enter resume   Esc end match", TF_SMALL_FONT | TF_ALIGN_CENTER, theme::TEXT_DIM);
+}
+
+void KnockoutGameState::presentWinner()
+{
+	IMGUI& imgui = getIMGUI();
+	const KnockoutPlayer& winner = mPlayers[mQueue.getWinner()];
+
+	imgui.doPanel(Vector2(0, 0), Vector2(800, 600), theme::PANEL, 0.5, 0);
+	imgui.doPanel(Vector2(140, 100), Vector2(660, 500), theme::PANEL, 0.92, 32);
+
+	std::string title = winner.getName() + " wins!";
+	unsigned font = getRenderer().getTextWidth(title, TF_HUGE_FONT) <= 480 ? TF_HUGE_FONT : TF_LARGE_FONT;
+	imgui.doText(Vector2(400, font == TF_HUGE_FONT ? 114 : 128), title, font | TF_ALIGN_CENTER, theme::ACCENT);
+
+	// the trophy is 130x360
+	imgui.doImage(Vector2(310, 300), "gfx/pokal.bmp", Vector2(63, 175));
+	imgui.doBlob(Vector2(490, 304), mSkins[mQueue.getWinner()], 1.6, mWinnerSquish.frame());
+
+	imgui.doText(Vector2(400, 392), "Last blob standing", TF_NORMAL | TF_ALIGN_CENTER, theme::TEXT_DIM);
+	doHints(434, { {"Start", theme::BUTTON_MENU, "Play again"}, {"B", theme::BUTTON_B, "Players"} });
+	imgui.doText(Vector2(400, 468), "Keyboard:  Enter play again   Esc players", TF_SMALL_FONT | TF_ALIGN_CENTER, theme::TEXT_DIM);
 }
 
 const char* KnockoutGameState::getStateName() const

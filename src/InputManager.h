@@ -20,7 +20,6 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 #pragma once
 
-#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -28,120 +27,42 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #include <SDL_keycode.h>
 #include <SDL_gamecontroller.h>
 
-#include "PlayerInput.h"
-#include "Vector.h"
 #include "BlobbyDebug.h"
 
-enum class KeyAction
-{
-	UP,
-	DOWN,
-	LEFT,
-	RIGHT,
-	SELECT,
-	BACK,
-	NONE
-};
-
-class JoystickPool;
-class InputDevice;
 class BlobbyApp;
-struct _SDL_Joystick;
-typedef struct _SDL_Joystick SDL_Joystick;
-struct JoystickAction;
 
-/// \brief class for managing input
+/// \brief class for managing input: the keyboard and the gamepads
 class InputManager : public ObjectCounter<InputManager>
 {
 	public:
-		InputManager(BlobbyApp* app);
+		explicit InputManager(BlobbyApp* app);
 		~InputManager();
 
-		std::unique_ptr<InputDevice> beginGame(PlayerSide side);
+		/// processes the events of this frame, call once per frame
+		void updateInput();
 
 		bool running() const;
 		void setEndBlobby();	// call to trigger the event that ends blobby, i.e. running will return false after this call.
-		void updateInput();
 
-		void captureMouse( bool c );		// sets whether the mouse should be captured
-		bool isMouseCaptured() const;
+		/// true in the frame in which escape was pressed
+		bool exit() const;
 
-		// For GUI navigation (Gamepad, Joystick or Keyboard)
-		bool up() const;
-		bool down() const;
-		bool left() const;
-		bool right() const;
-		bool select() const;
-		bool exit() const; // extension for mouse included, so that right click = exit
-
-		std::string getLastTextKey();
-		std::string getLastActionKey() const;
-		int getLastMouseButton() const { return mLastMouseButton; }
-		std::string getLastJoyAction() const;
-
-		// For GUI navigation (Mouse)
-		Vector2 position();
-		bool click() const;
-		bool doubleClick() const;
-		bool mouseWheelUp() const;
-		bool mouseWheelDown() const;
-		bool unclick() const;
-
-		// In-game input visualization (Mouse)
-		void setMouseMarker(int target);
-
-		// In-game input
 		bool isKeyPressed(SDL_Keycode code) const;
-		bool isJoyActionActive(const JoystickAction& action) const;
-
-		bool windowFocus() const;
-
-		SDL_Joystick* getJoystickById(int joyId);
 
 		// Gamepads (SDL GameController API), identified by their SDL joystick instance id.
 		// They are opened automatically when connected and listed in connection order.
 		std::vector<int> getGamepads() const;
-		std::string getGamepadName(int instanceId) const;
 		bool isGamepadButtonDown(int instanceId, SDL_GameControllerButton button) const;
 		int getGamepadAxis(int instanceId, SDL_GameControllerAxis axis) const;
 		/// lets the gamepad vibrate, if it supports that. strength is between 0 and 1.
 		void rumbleGamepad(int instanceId, float strength, int durationMs);
+
 	private:
 		SDL_GameController* findGamepad(int instanceId) const;
 
-		// Keyboard
-		//static InputKeyMap mKeyMap[];	// Type for String <-convert-> SDLKey
-
-		// GUI storage (because we need event based input for the GUI)
-		bool mUp;
-		bool mDown;
-		bool mLeft;
-		bool mRight;
-		bool mSelect;
-		bool mExit;
-		bool mClick;
-		bool mDoubleClick;
-		bool mMouseWheelUp;
-		bool mMouseWheelDown;
-		bool mUnclick;
-
-		bool mWindowFocus;
-
-		int mMouseX;
-		int mMouseY;
-		int mLastClickTime;
-
-		SDL_Keycode mLastActionKey;
-		std::string mLastTextKey;
-
-		int mLastMouseButton;
-		std::string mLastJoyAction;
-
-		bool mRunning;
-
-		bool mMouseCaptured;
+		bool mRunning = true;
+		bool mExit = false;
 
 		BlobbyApp* mApp;
-		std::unique_ptr<JoystickPool> mJoystickPool;
 		std::vector<std::pair<int, SDL_GameController*>> mGamepads;
 };

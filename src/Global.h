@@ -48,21 +48,16 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 			useful for tracking down bugs.
 */
 
-const int BLOBBY_PORT = 1234;
-
 const int BLOBBY_VERSION_MAJOR = 0;
 const int BLOBBY_VERSION_MINOR = 107;
 
-const char AppTitle[] = "Blobby Volley 2 Version 1.1.1";
+const char AppTitle[] = "Blobby Knockout";
 const int BASE_RESOLUTION_X = 800;
 const int BASE_RESOLUTION_Y = 600;
 
 const float ROUND_START_SOUND_VOLUME = 0.2;
 const float BALL_HIT_PLAYER_SOUND_VOLUME = 0.4;
 
-// max. 1 ms additional latency, but much improved performance
-const int RAKNET_THREAD_SLEEP_TIME = 1;
-extern int CURRENT_NETWORK_LAG;
 
 const std::string DEFAULT_RULES_FILE = "default.lua";
 

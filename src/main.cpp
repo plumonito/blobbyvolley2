@@ -30,25 +30,16 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 #include "Global.h"
 
-#ifdef __SWITCH__
-	#include <switch.h>
-#endif
-
 #include "RenderManager.h"
 #include "SoundManager.h"
 #include "InputManager.h"
-#include "TextManager.h"
 #include "UserConfig.h"
 #include "IMGUI.h"
 #include "SpeedController.h"
-#include "Blood.h"
 #include "FileSystem.h"
-#include "state/State.h"
+#include "state/KnockoutSetupState.h"
 #include "BlobbyApp.h"
 
-// this global allows the host game thread to be killed
-extern std::atomic<bool> gKillHostThread;
-extern std::shared_ptr<std::thread> gHostedServerThread;
 
 /* implementation */
 
@@ -56,9 +47,6 @@ void deinit()
 {
 	SDL_Quit();
 
-#if (defined __SWITCH__) && (defined DEBUG)
-	socketExit();
-#endif
 }
 
 void setupPHYSFS()
@@ -69,7 +57,7 @@ void setupPHYSFS()
 	// relevant platforms.
 
 	// List all the subdirectories / zip archives that we want to read from
-	std::vector<std::string> subdirs = {"gfx", "sounds", "scripts", "backgrounds", "rules"};
+	std::vector<std::string> subdirs = {"gfx", "sounds", "backgrounds", "rules", "fonts", "players"};
 
 	// set write dir
 	std::string writeDir = fs.getPrefDir();
@@ -97,19 +85,6 @@ void setupPHYSFS()
 		}
 	}
 
-	// set read dir (files inside MacOS bundle)
-	#if (defined BUILD_MACOS_BUNDLE)
-	{
-		std::string dataDir = fs.join(fs.getBaseDir(), std::string("Contents") + 
-		                                               fs.getDirSeparator() +
-		                                               std::string("Resources"));
-		fs.addToSearchPath(dataDir);
-		for(const auto& archive : subdirs) {
-			fs.addToSearchPath(fs.join(dataDir, archive + ".zip"));
-		}
-	}
-	#endif
-
 	// set read dir (unix-like when installed)
 	#ifdef BLOBBY_DATA_DIR
 		fs.addToSearchPath(BLOBBY_DATA_DIR);
@@ -121,11 +96,6 @@ void setupPHYSFS()
 
 int main(int argc, char* argv[])
 {
-#if (defined __SWITCH__) && (defined DEBUG)
-	socketInitializeDefault();   
-	nxlinkStdio();
-#endif
-
 	DEBUG_STATUS("started main");
 
 	FileSystem filesys(argv[0]);
@@ -139,29 +109,8 @@ int main(int argc, char* argv[])
 	DEBUG_STATUS("SDL initialised");
 
 	atexit(SDL_Quit);
-	atexit([](){gKillHostThread=true; if(gHostedServerThread) gHostedServerThread->join();});
 	srand(SDL_GetTicks());
 
-	// Test Version Startup Warning
-	#ifdef TEST_VERSION
-	struct tm* ptm;
-	time_t time = std::time(0);
-	ptm = gmtime ( &time );
-
-	if( ptm->tm_year > (2015-1900) || ptm->tm_mon >= 12 )
-	{
-		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "TEST VERISON OUTDATED",
-									(std::string("This is a test version of ") + AppTitle + " which expired on "
-									"1.12.2015. Please visit https://blobbyvolley.de for a newer version").c_str(), 0);
-		return -1;
-	}
-
-	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "TEST VERISON WARNING",
-								(std::string("This is a test version of ") + AppTitle + " for testing only.\n"
-								"It might be unstable and/or incompatible to the current release. "
-								"Use of this version is limited to 1.12.2015.\n"
-								"Visit https://blobbyvolley.de for more information or bug reporting.").c_str(), 0);
-	#endif
 
 	try
 	{
@@ -176,7 +125,7 @@ int main(int argc, char* argv[])
 
 		DEBUG_STATUS("starting mainloop");
 
-		BlobbyApp app( std::unique_ptr<State>(new MainMenuState()), gameConfig );
+		BlobbyApp app( std::unique_ptr<State>(new KnockoutSetupState()), gameConfig );
 
 		while (running)
 		{
@@ -187,24 +136,18 @@ int main(int argc, char* argv[])
 			app.step();
 			//draw FPS:
 			static int lastfps = 0;
-			static int lastlag = -1;
 			if (scontroller.getDrawFPS())
 			{
 				// We need to ensure that the title bar is only set
 				// when the framerate changed, because setting the
 				// title can be quite resource intensive on some
 				// windows manager, like for example metacity.
-				// we only update lag information if lag changed at least by
-				// 5 ms, for the same reason.
 				int newfps = scontroller.getFPS();
-				if (newfps != lastfps || std::abs(CURRENT_NETWORK_LAG - lastlag) > 4)
+				if (newfps != lastfps)
 				{
 					std::stringstream tmp;
 					tmp << AppTitle << "  FPS: " << newfps;
-					if( CURRENT_NETWORK_LAG != -1)
-						tmp << "  LAG: " << CURRENT_NETWORK_LAG;
 					app.getRenderManager().setTitle(tmp.str());
-					lastlag = CURRENT_NETWORK_LAG;
 				}
 				lastfps = newfps;
 			}
@@ -221,7 +164,6 @@ int main(int argc, char* argv[])
 			if (!scontroller.doFramedrop())
 			{
 				app.getIMGUI().end(app.getRenderManager());
-				app.getRenderManager().getBlood().step(app.getRenderManager());
 				app.getRenderManager().refresh();
 			}
 			scontroller.update();
@@ -232,9 +174,6 @@ int main(int argc, char* argv[])
 		std::cerr << e.what() << std::endl;
 		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Error", (std::string("An error occurred, blobby will close: ") + e.what()).c_str(), nullptr);
 		SDL_Quit();
-#if (defined __SWITCH__) && (defined DEBUG)
-	socketExit();
-#endif
 		exit (EXIT_FAILURE);
 	}
 	deinit();

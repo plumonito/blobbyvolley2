@@ -19,16 +19,18 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 #pragma once
 
+#include <map>
 #include <vector>
 
 #include "State.h"
 #include "LocalPlayers.h"
+#include "SquishAnimation.h"
 
 /*! \class KnockoutSetupState
-	\brief menu in which up to eight local players join a knockout match
+	\brief the menu in which up to eight local players join a knockout match
 	\details Every keyboard layout and gamepad joins by pressing jump and leaves with
-			down (keyboard) or B (gamepad). The players enter the court in the order
-			in which they joined.
+			down (keyboard) or B (gamepad). With left / right, a player chooses their profile.
+			The players enter the court in the order in which they joined.
 */
 class KnockoutSetupState : public State
 {
@@ -42,18 +44,29 @@ class KnockoutSetupState : public State
 	private:
 		/// applies the buttons the controller pressed in this frame
 		void handleController(const LocalController& controller, const LocalControllerButtons& pressed);
-		bool hasJoined(const LocalController& controller) const;
-		void leave(const LocalController& controller);
+		KnockoutPlayer* findPlayer(const LocalController& controller);
+		/// the next free profile from index start on, in the given direction; -1 if there is none
+		int findFreeProfile(int start, int direction) const;
+		void changeProfile(KnockoutPlayer& player, int direction);
 		void changeLives();
 		bool canStart() const;
 
+		void drawPlayerCard(int slot, float x, float y);
+
 		std::vector<KnockoutPlayer> mPlayers;
 		int mLives;
+		std::vector<PlayerProfile> mProfiles;
 
 		LocalControllerWatcher mControllers;
+		/// blobs on the cards squish when their player presses jump, by player number
+		std::map<int, SquishAnimation> mSquish;
+
 		/// start the match / leave the menu at the end of this frame
 		bool mStartRequested = false;
 		bool mBackRequested = false;
-		/// the enter key may still be held from the menu that led here
+		/// leaving the game needs a second press within this many frames
+		int mQuitConfirmFrames = 0;
+		/// the keys may still be held from the screen that led here
 		bool mLastReturn = true;
+		bool mLastLivesKey = true;
 };

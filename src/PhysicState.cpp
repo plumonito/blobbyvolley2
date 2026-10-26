@@ -23,34 +23,6 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 /* includes */
 #include "GameConstants.h"
-#include "GenericIO.h"
-
-USER_SERIALIZER_IMPLEMENTATION_HELPER(PhysicState)
-{
-	io.number( value.blobPosition[LEFT_PLAYER].x );
-	io.number( value.blobPosition[LEFT_PLAYER].y );
-
-	io.number( value.blobVelocity[LEFT_PLAYER].x );
-	io.number( value.blobVelocity[LEFT_PLAYER].y );
-
-	io.number( value.blobPosition[RIGHT_PLAYER].x );
-	io.number( value.blobPosition[RIGHT_PLAYER].y );
-
-	io.number( value.blobVelocity[RIGHT_PLAYER].x );
-	io.number( value.blobVelocity[RIGHT_PLAYER].y );
-
-	io.number( value.blobState[LEFT_PLAYER] );
-	io.number( value.blobState[RIGHT_PLAYER] );
-
-	io.number( value.ballPosition.x );
-	io.number( value.ballPosition.y );
-
-	io.number( value.ballVelocity.x );
-	io.number( value.ballVelocity.y );
-
-	io.number( value.ballRotation );
-	io.number( value.ballAngularVelocity );
-}
 
 void PhysicState::swapSides()
 {

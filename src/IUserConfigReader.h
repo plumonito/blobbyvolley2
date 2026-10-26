@@ -26,7 +26,6 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #include "Global.h"
 #include "BlobbyDebug.h"
 
-class PlayerIdentity;
 class InputSource;
 
 
@@ -42,5 +41,4 @@ class IUserConfigReader : public ObjectCounter<IUserConfigReader>
 		virtual bool getBool(const std::string& name, bool default_value = false) const = 0;
 		virtual int getInteger(const std::string& name, int default_value = 0) const = 0;
 
-		virtual PlayerIdentity loadPlayerIdentity(PlayerSide player, bool force_human) const = 0;
 };

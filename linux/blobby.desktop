@@ -1,11 +1,11 @@
 [Desktop Entry]
 Type=Application
 Version=1.0
-Name=Blobby Volley 2
+Name=Blobby Knockout
 GenericName=Volley Ball Game
 GenericName[fr]=Jeu de Volley-Ball
 GenericName[de]=Volley-Ball Spiel
-Comment=Two alien blobs battle at volleyball
+Comment=Up to eight players take turns on two blobs - last blob standing wins
 Icon=blobby
 Exec=blobby
 Terminal=false

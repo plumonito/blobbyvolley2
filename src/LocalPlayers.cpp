@@ -48,6 +48,7 @@ namespace
 	};
 
 	const int KEYBOARD_LAYOUT_COUNT = sizeof(KEYBOARD_LAYOUTS) / sizeof(KEYBOARD_LAYOUTS[0]);
+	const int MENU_STICK_THRESHOLD = 16000;
 
 	const Color PLAYER_COLORS[KNOCKOUT_MAX_PLAYERS] = {
 		Color(0, 0, 255),		// blue
@@ -100,12 +101,17 @@ LocalControllerButtons LocalControllerButtons::poll(const LocalController& contr
 	if (controller.type == LocalController::KEYBOARD)
 	{
 		const KeyboardLayout& layout = KEYBOARD_LAYOUTS[controller.id];
+		buttons.left = inputMgr.isKeyPressed(layout.left);
+		buttons.right = inputMgr.isKeyPressed(layout.right);
 		buttons.jump = inputMgr.isKeyPressed(layout.jump);
 		buttons.leave = inputMgr.isKeyPressed(layout.leave);
 	}
 	else
 	{
 		int pad = controller.id;
+		int stick = inputMgr.getGamepadAxis(pad, SDL_CONTROLLER_AXIS_LEFTX);
+		buttons.left = stick < -MENU_STICK_THRESHOLD || inputMgr.isGamepadButtonDown(pad, SDL_CONTROLLER_BUTTON_DPAD_LEFT);
+		buttons.right = stick > MENU_STICK_THRESHOLD || inputMgr.isGamepadButtonDown(pad, SDL_CONTROLLER_BUTTON_DPAD_RIGHT);
 		buttons.jump = inputMgr.isGamepadButtonDown(pad, SDL_CONTROLLER_BUTTON_A);
 		buttons.leave = inputMgr.isGamepadButtonDown(pad, SDL_CONTROLLER_BUTTON_B);
 		buttons.lives = inputMgr.isGamepadButtonDown(pad, SDL_CONTROLLER_BUTTON_Y);
@@ -118,6 +124,8 @@ LocalControllerButtons LocalControllerButtons::poll(const LocalController& contr
 LocalControllerButtons LocalControllerButtons::pressedSince(const LocalControllerButtons& before) const
 {
 	LocalControllerButtons pressed;
+	pressed.left = left && !before.left;
+	pressed.right = right && !before.right;
 	pressed.jump = jump && !before.jump;
 	pressed.leave = leave && !before.leave;
 	pressed.lives = lives && !before.lives;
@@ -147,7 +155,9 @@ LocalControllerWatcher::Presses LocalControllerWatcher::poll(const InputManager&
 
 std::string KnockoutPlayer::getName() const
 {
-	return "player " + std::to_string(number);
+	if (!name.empty())
+		return name;
+	return "Player " + std::to_string(number);
 }
 
 Color KnockoutPlayer::getColor() const

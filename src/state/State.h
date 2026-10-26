@@ -22,19 +22,19 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 #include <memory>
 #include <string>
+#include <vector>
 
-class DuelMatch;
-class ReplayRecorder;
+#include "Color.h"
+
 class BlobbyApp;
 class IMGUI;
 class InputManager;
-
-#define GEN_ID getIMGUI().getNextId()
+class RenderManager;
 
 /*! \class State
 	\brief Base class for all programme states.
 	\details A program state describes which state a programme is in
-			( e.g. MainMenu, OptionsMenu, SinglePlayerGame etc. ). It defines
+			( e.g. the setup menu or the match ). It defines
 			an abstract step function which is called each frame for the
 			currently active state.
 			Switching to a new state is a little cumbersome right now, as
@@ -55,17 +55,28 @@ public:
 	virtual const char* getStateName() const = 0;
 
 protected:
-	/// generic state constructor. automatically resets imgui selection
 	State();
 
 	BlobbyApp& getApp() const;
 	IMGUI& getIMGUI() const;
 	InputManager& getInputMgr() const;
+	RenderManager& getRenderer() const;
 
 	// shortcuts
 	void playSound(const std::string& sound, float volume);
+	/// true in the frame in which escape was pressed
 	bool is_exiting() const;
-	bool clicked() const;
+
+	/// a controller button and what it does, shown at the bottom of the screen
+	struct Hint
+	{
+		std::string button;		///< "A", "B", "Y", "Start", ...
+		Color color;
+		std::string label;
+		bool enabled = true;
+	};
+	/// draws a row of hints, centred horizontally, with its top at y
+	void doHints(float y, const std::vector<Hint>& hints);
 
 	void switchState(State* newState);
 private:
@@ -76,30 +87,3 @@ private:
 	BlobbyApp* m_App = nullptr;
 
 };
-
-/*! \class MainMenuState
-	\brief state for main menu
-*/
-class MainMenuState : public State
-{
-public:
-	MainMenuState();
-	~MainMenuState() override;
-	void step_impl() override;
-	const char* getStateName() const override;
-};
-
-/*! \class CreditsState
-	\brief State for credits screen
-*/
-class CreditsState : public State
-{
-public:
-	CreditsState();
-	void step_impl() override;
-	const char* getStateName() const override;
-private:
-	float mYPosition;
-};
-
-

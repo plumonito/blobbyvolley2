@@ -1,9 +1,8 @@
 cmake_minimum_required(VERSION 3.11)
 
-project(blobby VERSION 1.1.1)
+project(blobby-knockout VERSION 1.1.1)
 
 option(BUILD_TESTS "Build test programs" OFF)
-option(BUILD_MACOS_BUNDLE "Create a self-containing MacOS bundle" OFF)
 
 # use FindBoost.cmake instead of BoostConfig.cmake
 if(POLICY CMP0167)
@@ -19,9 +18,8 @@ add_subdirectory(deps)
 
 add_subdirectory(linux)
 
-add_subdirectory(macos)
-
 if(BUILD_TESTS)
+	enable_testing()
 	add_subdirectory(test)
 endif()
 

@@ -25,7 +25,6 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #include "DuelMatchState.h"
 #include "MatchEvents.h"
 #include "PhysicWorld.h"
-#include "GenericIO.h"
 #include "GameConstants.h"
 #include "InputSource.h"
 #include "IUserConfigReader.h"
@@ -48,12 +47,6 @@ DuelMatch::DuelMatch(bool remote, const std::string& rules, int score_to_win) :
 
 	if(!mRemote)
 		mPhysicWorld->setEventCallback( [this]( const MatchEvent& event ) { mEvents.push_back(event); } );
-}
-
-void DuelMatch::setPlayers(PlayerIdentity left_player, PlayerIdentity right_player)
-{
-	mPlayers[LEFT_PLAYER] = std::move(left_player);
-	mPlayers[RIGHT_PLAYER] = std::move(right_player);
 }
 
 void DuelMatch::setInputSources(std::shared_ptr<InputSource> left_input, std::shared_ptr<InputSource> right_input )
@@ -338,16 +331,6 @@ bool DuelMatch::canStartRound(PlayerSide servingPlayer) const
 	Vector2 ballVelocity = mPhysicWorld->getBallVelocity();
 	return (mPhysicWorld->blobHitGround(servingPlayer) && ballVelocity.y < 1.5 &&
 			ballVelocity.y > -1.5 && mPhysicWorld->getBallPosition().y > 430);
-}
-
-PlayerIdentity DuelMatch::getPlayer(PlayerSide player) const
-{
-	return mPlayers[player];
-}
-
-PlayerIdentity& DuelMatch::getPlayer(PlayerSide player)
-{
-	return mPlayers[player];
 }
 
 void DuelMatch::updateEvents()

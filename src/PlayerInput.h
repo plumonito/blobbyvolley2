@@ -28,11 +28,6 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 class DuelMatch;
 
-namespace RakNet
-{
-	class BitStream;
-}
-
 /*! \struct PlayerInput
 	\brief struct for easy exchange of a single player input frame
 */
@@ -65,7 +60,6 @@ class PlayerInputAbs
 {
 	public:
 		PlayerInputAbs();
-		explicit PlayerInputAbs(RakNet::BitStream& stream);
 		PlayerInputAbs(bool l, bool r, bool j);
 
 
@@ -82,8 +76,6 @@ class PlayerInputAbs
 		// currently.
 		PlayerInput toPlayerInput( const DuelMatch* match ) const;
 
-		// send via network
-		void writeTo(RakNet::BitStream& stream) const;
 
 
 	private:

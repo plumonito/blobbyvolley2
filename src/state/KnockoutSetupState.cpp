@@ -27,7 +27,10 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 #include "IMGUI.h"
 #include "InputManager.h"
+#include "RenderManager.h"
 #include "SoundManager.h"
+#include "SpeedController.h"
+#include "Theme.h"
 #include "KnockoutGameState.h"
 
 /* implementation */
@@ -35,15 +38,19 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 namespace
 {
 	const int MAX_LIVES = 5;
-	const unsigned ROWS_PER_COLUMN = KNOCKOUT_MAX_PLAYERS / 2;
-	const float COLUMN_X[2] = {40, 420};
-	const float ROW_HEIGHT = 62;
-	const unsigned MAX_SMALL_LINE_LENGTH = 62;
+	const int QUIT_CONFIRM_FRAMES = 150;
+
+	const float CARD_WIDTH = 172;
+	const float CARD_HEIGHT = 176;
+	const float CARD_GAP = 14;
+	const float CARDS_X = (800 - 4 * CARD_WIDTH - 3 * CARD_GAP) / 2;
+	const float CARDS_Y = 108;
 }
 
 KnockoutSetupState::KnockoutSetupState(std::vector<KnockoutPlayer> players, int lives)
-	: mPlayers(std::move(players)), mLives(lives)
+	: mPlayers(std::move(players)), mLives(lives), mProfiles(PlayerProfile::load())
 {
+	SpeedController::getMainInstance()->setGameSpeed(75);
 }
 
 KnockoutSetupState::~KnockoutSetupState() = default;
@@ -52,10 +59,6 @@ void KnockoutSetupState::step_impl()
 {
 	IMGUI& imgui = getIMGUI();
 	InputManager& inputMgr = getInputMgr();
-
-	// the controllers navigate this menu themselves, so the keyboard / joystick selection of
-	// the buttons is disabled: otherwise pressing jump could click a highlighted button
-	imgui.resetSelection();
 
 	// ------------------------------------------------------------------------------------------
 	// input
@@ -75,98 +78,83 @@ void KnockoutSetupState::step_impl()
 		mStartRequested = true;
 	mLastReturn = returnHeld;
 
+	bool livesKey = inputMgr.isKeyPressed(SDLK_l);
+	if (livesKey && !mLastLivesKey)
+		changeLives();
+	mLastLivesKey = livesKey;
+
 	if (is_exiting())
 		mBackRequested = true;
+
+	for (auto& squish : mSquish)
+		squish.second.step();
+	if (mQuitConfirmFrames > 0)
+		--mQuitConfirmFrames;
 
 	// ------------------------------------------------------------------------------------------
 	// drawing
 	// ------------------------------------------------------------------------------------------
-	imgui.doCursor();
-	imgui.doImage(GEN_ID, Vector2(400.0, 300.0), "background");
-	imgui.doOverlay(GEN_ID, Vector2(0.0, 0.0), Vector2(800.0, 600.0));
-	imgui.doText(GEN_ID, Vector2(400, 18), "knockout", TF_ALIGN_CENTER);
+	imgui.doBackground();
+	imgui.doPanel(Vector2(0, 0), Vector2(800, 600), theme::PANEL, 0.45, 0);
+	imgui.doText(Vector2(400, 10), "Blobby Knockout", TF_HUGE_FONT | TF_ALIGN_CENTER);
 
-	imgui.doOverlay(GEN_ID, Vector2(20, 58), Vector2(780, 318));
-	for (unsigned i = 0; i < mPlayers.size(); ++i)
+	for (int slot = 0; slot < KNOCKOUT_MAX_PLAYERS; ++slot)
 	{
-		const float x = COLUMN_X[i / ROWS_PER_COLUMN];
-		const float y = 72 + (i % ROWS_PER_COLUMN) * ROW_HEIGHT;
-
-		std::string controller = mPlayers[i].controller.getName(inputMgr);
-		if (i == 0)
-			controller += " - starts left";
-		else if (i == 1)
-			controller += " - starts right";
-
-		imgui.doOverlay(GEN_ID, Vector2(x, y), Vector2(x + 24, y + 24), mPlayers[i].getColor(), 1.0);
-		imgui.doText(GEN_ID, Vector2(x + 36, y), mPlayers[i].getName());
-		imgui.doText(GEN_ID, Vector2(x + 36, y + 28), controller, TF_SMALL_FONT);
+		float x = CARDS_X + (slot % 4) * (CARD_WIDTH + CARD_GAP);
+		float y = CARDS_Y + (slot / 4) * (CARD_HEIGHT + CARD_GAP);
+		drawPlayerCard(slot, x, y);
 	}
-	if (mPlayers.empty())
-		imgui.doText(GEN_ID, Vector2(400, 176), "nobody has joined yet", TF_ALIGN_CENTER);
 
-	if (imgui.doButton(GEN_ID, Vector2(400, 334), "lives: " + std::to_string(mLives), TF_ALIGN_CENTER))
-		changeLives();
-
-	// controllers that have not joined yet
-	std::vector<std::string> waitingLines;
-	std::string line;
-	for (const auto& controller : controllers)
+	// lives: pips in a pill
 	{
-		if (hasJoined(controller))
-			continue;
-
-		std::string name = controller.getName(inputMgr);
-		if (line.empty())
-			line = name;
-		else if (line.size() + 2 + name.size() <= MAX_SMALL_LINE_LENGTH)
-			line += ", " + name;
-		else
+		const float y = 486;
+		const float pipSize = 14;
+		float labelWidth = getRenderer().getTextWidth("Lives", TF_NORMAL);
+		float width = labelWidth + 14 + MAX_LIVES * (pipSize + 6) - 6;
+		float x = 400 - width / 2;
+		imgui.doPanel(Vector2(x - 18, y - 6), Vector2(x + width + 18, y + 38), theme::PANEL, 0.8, 22);
+		imgui.doText(Vector2(x, y), "Lives", TF_NORMAL);
+		x += labelWidth + 14;
+		for (int i = 1; i <= MAX_LIVES; ++i)
 		{
-			waitingLines.push_back(line);
-			line = name;
+			float top = y + 9;
+			if (i <= mLives)
+				imgui.doPanel(Vector2(x, top), Vector2(x + pipSize, top + pipSize), theme::ACCENT, 1, pipSize / 2);
+			else
+				imgui.doPanel(Vector2(x, top), Vector2(x + pipSize, top + pipSize), theme::TEXT_DIM, 0.3, pipSize / 2);
+			x += pipSize + 6;
 		}
 	}
-	if (!line.empty())
-		waitingLines.push_back(line);
 
-	if (mPlayers.size() >= (unsigned)KNOCKOUT_MAX_PLAYERS)
-	{
-		imgui.doText(GEN_ID, Vector2(400, 380), "the match is full", TF_SMALL_FONT | TF_ALIGN_CENTER);
-	}
-	else if (!waitingLines.empty())
-	{
-		imgui.doText(GEN_ID, Vector2(400, 380), "press jump to join:", TF_SMALL_FONT | TF_ALIGN_CENTER);
-		for (unsigned i = 0; i < waitingLines.size() && i < 2; ++i)
-			imgui.doText(GEN_ID, Vector2(400, 396 + i * 16), waitingLines[i], TF_SMALL_FONT | TF_ALIGN_CENTER);
-	}
+	std::vector<Hint> hints = {
+		{"A", theme::BUTTON_A, "Join"},
+		{"B", theme::BUTTON_B, "Leave"},
+	};
+	if (!mProfiles.empty())
+		hints.push_back({"<>", theme::BUTTON_MENU, "Name"});
+	hints.push_back({"Y", theme::BUTTON_Y, "Lives"});
+	hints.push_back({"Start", theme::BUTTON_MENU, canStart() ? "Play" : "Play (2 players)", canStart()});
+	hints.push_back({"Back", theme::BUTTON_MENU, mQuitConfirmFrames > 0 ? "Again to quit" : "Quit"});
+	doHints(536, hints);
 
-	imgui.doText(GEN_ID, Vector2(400, 446), "touch the ball and the next in line takes over.", TF_SMALL_FONT | TF_ALIGN_CENTER);
-	imgui.doText(GEN_ID, Vector2(400, 462), "miss and you lose a life. last one standing wins.", TF_SMALL_FONT | TF_ALIGN_CENTER);
-	imgui.doText(GEN_ID, Vector2(400, 494), "jump: join   down / b: leave   y: lives", TF_SMALL_FONT | TF_ALIGN_CENTER);
-	imgui.doText(GEN_ID, Vector2(400, 510), "start / enter: play   back / esc: menu", TF_SMALL_FONT | TF_ALIGN_CENTER);
-
-	if (imgui.doButton(GEN_ID, Vector2(34, 562), TextManager::LBL_CANCEL))
-		mBackRequested = true;
-
-	if (canStart())
-	{
-		if (imgui.doButton(GEN_ID, Vector2(766, 562), TextManager::MNU_LABEL_START, TF_ALIGN_RIGHT))
-			mStartRequested = true;
-	}
-	else
-	{
-		imgui.doText(GEN_ID, Vector2(766, 568), "needs two players", TF_SMALL_FONT | TF_ALIGN_RIGHT);
-	}
+	std::string keyboard = "Keyboard:  W / Up join   S / Down leave   ";
+	if (!mProfiles.empty())
+		keyboard += "A D / Left Right name   ";
+	keyboard += "L lives   Enter play   Esc quit";
+	imgui.doText(Vector2(400, 572), keyboard, TF_SMALL_FONT | TF_ALIGN_CENTER, theme::TEXT_DIM);
 
 	// ------------------------------------------------------------------------------------------
 	// state changes
 	// ------------------------------------------------------------------------------------------
 	if (mBackRequested)
 	{
-		switchState(new MainMenuState());
+		mBackRequested = false;
+		if (mQuitConfirmFrames > 0)
+			inputMgr.setEndBlobby();
+		else
+			mQuitConfirmFrames = QUIT_CONFIRM_FRAMES;
 	}
-	else if (mStartRequested)
+	if (mStartRequested)
 	{
 		mStartRequested = false;
 		if (canStart())
@@ -174,19 +162,79 @@ void KnockoutSetupState::step_impl()
 	}
 }
 
+void KnockoutSetupState::drawPlayerCard(int slot, float x, float y)
+{
+	IMGUI& imgui = getIMGUI();
+	const float centreX = x + CARD_WIDTH / 2;
+
+	if (slot >= (int)mPlayers.size())
+	{
+		imgui.doPanel(Vector2(x, y), Vector2(x + CARD_WIDTH, y + CARD_HEIGHT), theme::PANEL, 0.35, 18);
+		imgui.doText(Vector2(centreX, y + CARD_HEIGHT / 2 - 22), "Press jump", TF_SMALL_FONT | TF_ALIGN_CENTER, theme::TEXT_DIM);
+		imgui.doText(Vector2(centreX, y + CARD_HEIGHT / 2), "to join", TF_SMALL_FONT | TF_ALIGN_CENTER, theme::TEXT_DIM);
+		return;
+	}
+
+	const KnockoutPlayer& player = mPlayers[slot];
+	imgui.doPanel(Vector2(x, y), Vector2(x + CARD_WIDTH, y + CARD_HEIGHT), theme::PANEL, 0.85, 18);
+
+	// order of play
+	std::string order = "#" + std::to_string(slot + 1);
+	if (slot == 0)
+		order += " left";
+	else if (slot == 1)
+		order += " right";
+	imgui.doText(Vector2(x + 12, y + 8), order, TF_SMALL_FONT, theme::ACCENT);
+
+	int skin = getRenderer().getBlobSkin(player.getColor(), player.face);
+	imgui.doBlob(Vector2(centreX, y + 76), skin, 1, mSquish[player.number].frame());
+	if (!mProfiles.empty())
+	{
+		imgui.doText(Vector2(x + 16, y + 64), "<", TF_NORMAL, theme::TEXT_DIM);
+		imgui.doText(Vector2(x + CARD_WIDTH - 16, y + 64), ">", TF_NORMAL | TF_ALIGN_RIGHT, theme::TEXT_DIM);
+	}
+
+	// long names get the smaller font
+	std::string name = player.getName();
+	unsigned nameFont = getRenderer().getTextWidth(name, TF_NORMAL) <= CARD_WIDTH - 16 ? TF_NORMAL : TF_SMALL_FONT;
+	imgui.doText(Vector2(centreX, y + (nameFont == TF_NORMAL ? 122 : 128)), name, nameFont | TF_ALIGN_CENTER);
+	imgui.doText(Vector2(centreX, y + 152), player.controller.getName(getInputMgr()), TF_SMALL_FONT | TF_ALIGN_CENTER, theme::TEXT_DIM);
+}
+
 void KnockoutSetupState::handleController(const LocalController& controller, const LocalControllerButtons& pressed)
 {
-	if (!hasJoined(controller))
+	KnockoutPlayer* player = findPlayer(controller);
+	if (player == nullptr)
 	{
 		if (pressed.jump && mPlayers.size() < (unsigned)KNOCKOUT_MAX_PLAYERS)
 		{
-			mPlayers.push_back(KnockoutPlayer{controller, KnockoutPlayer::freeNumber(mPlayers)});
+			KnockoutPlayer newPlayer{controller, KnockoutPlayer::freeNumber(mPlayers), "", ""};
+			int profile = findFreeProfile(0, 1);
+			if (profile != -1)
+			{
+				newPlayer.name = mProfiles[profile].name;
+				newPlayer.face = mProfiles[profile].face;
+			}
+			mPlayers.push_back(newPlayer);
+			mSquish[newPlayer.number].start();
 			playSound(SoundManager::IMPACT, BALL_HIT_PLAYER_SOUND_VOLUME);
 		}
 	}
 	else if (pressed.leave)
 	{
-		leave(controller);
+		int number = player->number;
+		mPlayers.erase(std::remove_if(mPlayers.begin(), mPlayers.end(),
+				[&](const KnockoutPlayer& p) { return p.controller == controller; }), mPlayers.end());
+		mSquish.erase(number);
+	}
+	else
+	{
+		if (pressed.jump)
+			mSquish[player->number].start();
+		if (pressed.left)
+			changeProfile(*player, -1);
+		if (pressed.right)
+			changeProfile(*player, 1);
 	}
 
 	if (pressed.lives)
@@ -197,17 +245,48 @@ void KnockoutSetupState::handleController(const LocalController& controller, con
 		mBackRequested = true;
 }
 
-bool KnockoutSetupState::hasJoined(const LocalController& controller) const
+KnockoutPlayer* KnockoutSetupState::findPlayer(const LocalController& controller)
 {
-	return std::any_of(mPlayers.begin(), mPlayers.end(),
-			[&](const KnockoutPlayer& player) { return player.controller == controller; });
+	for (auto& player : mPlayers)
+	{
+		if (player.controller == controller)
+			return &player;
+	}
+	return nullptr;
 }
 
-void KnockoutSetupState::leave(const LocalController& controller)
+int KnockoutSetupState::findFreeProfile(int start, int direction) const
 {
-	mPlayers.erase(std::remove_if(mPlayers.begin(), mPlayers.end(),
-			[&](const KnockoutPlayer& player) { return player.controller == controller; }),
-			mPlayers.end());
+	int count = mProfiles.size();
+	for (int step = 0; step < count; ++step)
+	{
+		int index = ((start + step * direction) % count + count) % count;
+		bool taken = std::any_of(mPlayers.begin(), mPlayers.end(),
+				[&](const KnockoutPlayer& player) { return player.name == mProfiles[index].name; });
+		if (!taken)
+			return index;
+	}
+	return -1;
+}
+
+void KnockoutSetupState::changeProfile(KnockoutPlayer& player, int direction)
+{
+	if (mProfiles.empty())
+		return;
+
+	int current = -1;
+	for (unsigned i = 0; i < mProfiles.size(); ++i)
+	{
+		if (mProfiles[i].name == player.name)
+			current = i;
+	}
+
+	int next = findFreeProfile(current + direction, direction);
+	if (next == -1)
+		return;
+	player.name = mProfiles[next].name;
+	player.face = mProfiles[next].face;
+	mSquish[player.number].start();
 }
 
 void KnockoutSetupState::changeLives()

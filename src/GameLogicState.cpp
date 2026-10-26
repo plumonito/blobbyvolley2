@@ -22,23 +22,6 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 #include <ostream>
 
-#include "GenericIO.h"
-
-USER_SERIALIZER_IMPLEMENTATION_HELPER(GameLogicState)
-{
-	io.uint32(value.leftScore);
-	io.uint32(value.rightScore);
-	io.uint32(value.hitCount[LEFT_PLAYER]);
-	io.uint32(value.hitCount[RIGHT_PLAYER]);
-	io.template generic<PlayerSide>( value.servingPlayer );
-	io.template generic<PlayerSide>( value.winningPlayer );
-	io.uint32(value.squish[LEFT_PLAYER]);
-	io.uint32(value.squish[RIGHT_PLAYER]);
-	io.uint32(value.squishWall);
-	io.uint32(value.squishGround);
-	io.boolean(value.isGameRunning);
-	io.boolean(value.isBallValid);
-}
 
 void GameLogicState::swapSides()
 {

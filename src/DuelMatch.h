@@ -27,7 +27,6 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #include "GameLogic.h"
 #include "Vector.h"
 #include "PlayerInput.h"
-#include "PlayerIdentity.h"
 #include "BlobbyDebug.h"
 #include "MatchEvents.h"
 
@@ -52,7 +51,6 @@ class DuelMatch : public ObjectCounter<DuelMatch>
 
 		DuelMatch(bool remote, const std::string& rules, int score_to_win = 0);
 
-		void setPlayers(PlayerIdentity left_player, PlayerIdentity right_player);
 		void setInputSources(std::shared_ptr<InputSource> left_input, std::shared_ptr<InputSource> right_input );
 
 		~DuelMatch();
@@ -125,8 +123,6 @@ class DuelMatch : public ObjectCounter<DuelMatch>
 		//Input stuff for recording and playing replays
 		std::shared_ptr<InputSource> getInputSource(PlayerSide player) const;
 
-		PlayerIdentity getPlayer(PlayerSide player) const;
-		PlayerIdentity& getPlayer(PlayerSide player);
 
 		void setServingPlayer(PlayerSide side);
 
@@ -142,7 +138,6 @@ class DuelMatch : public ObjectCounter<DuelMatch>
 		std::shared_ptr<InputSource> mInputSources[MAX_PLAYERS];
 		PlayerInput mTransformedInput[MAX_PLAYERS];
 
-		PlayerIdentity mPlayers[MAX_PLAYERS];
 
 		int mTouchCount[MAX_PLAYERS] = {0, 0};
 
