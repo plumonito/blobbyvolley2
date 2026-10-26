@@ -44,7 +44,9 @@ Bruno;bruno.jpg
 Chloé
 ```
 
-See [data/players/README.md](data/players/README.md) for details. Without a list, players
+To turn photos into face textures, use `tools/faces/prepare_faces.py`: it finds the face,
+turns it upright, crops it to the blob and cuts out face and hair. See
+[data/players/README.md](data/players/README.md) for details. Without a list, players
 are called Player 1 to Player 8 and their blobs have plain colours.
 
 ## Settings
