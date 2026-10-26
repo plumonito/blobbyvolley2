@@ -70,6 +70,15 @@ cmake --build build -j
 ```bash
 build/src/blobby
 ```
+4. Or install it into your home folder (`~/.local`, no root needed): the game is then
+   started with `blobby` and shows up in the application menu.
+```bash
+cmake --install build
+```
+   The game data goes to `~/.local/share/blobby-knockout`; put your players there, e.g.
+   `unzip players.zip -d ~/.local/share/blobby-knockout` for a zip with a `players` folder.
+   For another place, configure with `-DCMAKE_INSTALL_PREFIX=/usr/local` (the data folder is
+   built into the game, so set it when configuring, not when installing).
 
 The unit tests are built with `-DBUILD_TESTS=ON` and run with `ctest --test-dir build`.
 

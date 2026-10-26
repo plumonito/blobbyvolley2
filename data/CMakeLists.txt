@@ -33,7 +33,7 @@ set(install_files
 if (WIN32 OR SWITCH)
 	install(FILES ${install_files} DESTINATION data)
 elseif (UNIX AND NOT APPLE)
-	install(FILES ${install_files} DESTINATION share/blobby)
+	install(FILES ${install_files} DESTINATION ${BLOBBY_DATA_INSTALL_DIR})
 endif (WIN32 OR SWITCH)
 
 set(data_files ${install_files} PARENT_SCOPE)

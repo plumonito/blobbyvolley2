@@ -61,7 +61,7 @@ set(blobby_SRC
 find_package(Boost REQUIRED)
 
 if (UNIX)
-	add_definitions("-DBLOBBY_DATA_DIR=\"${CMAKE_INSTALL_PREFIX}/share/blobby\"")
+	add_definitions("-DBLOBBY_DATA_DIR=\"${CMAKE_INSTALL_PREFIX}/${BLOBBY_DATA_INSTALL_DIR}\"")
 endif()
 
 set(BLOBBY_COMMON_LIBS lua::lua tinyxml2::tinyxml2 PhysFS::PhysFS SDL2::SDL2main SDL2::SDL2 Boost::boost)
