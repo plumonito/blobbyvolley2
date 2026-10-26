@@ -47,8 +47,8 @@ namespace
 	const float CARDS_Y = 108;
 }
 
-KnockoutSetupState::KnockoutSetupState(std::vector<KnockoutPlayer> players, int lives)
-	: mPlayers(std::move(players)), mLives(lives), mProfiles(PlayerProfile::load())
+KnockoutSetupState::KnockoutSetupState(std::vector<KnockoutPlayer> players, KnockoutSettings settings)
+	: mPlayers(std::move(players)), mSettings(settings), mProfiles(PlayerProfile::load())
 {
 	SpeedController::getMainInstance()->setGameSpeed(75);
 }
@@ -83,6 +83,11 @@ void KnockoutSetupState::step_impl()
 		changeLives();
 	mLastLivesKey = livesKey;
 
+	bool drunkKey = inputMgr.isKeyPressed(SDLK_x);
+	if (drunkKey && !mLastDrunkKey)
+		mSettings.drunk = !mSettings.drunk;
+	mLastDrunkKey = drunkKey;
+
 	if (is_exiting())
 		mBackRequested = true;
 
@@ -105,25 +110,42 @@ void KnockoutSetupState::step_impl()
 		drawPlayerCard(slot, x, y);
 	}
 
-	// lives: pips in a pill
+	// settings: lives as pips, and the drunk mode switch
 	{
 		const float y = 486;
 		const float pipSize = 14;
-		float labelWidth = getRenderer().getTextWidth("Lives", TF_NORMAL);
-		float width = labelWidth + 14 + MAX_LIVES * (pipSize + 6) - 6;
-		float x = 400 - width / 2;
-		imgui.doPanel(Vector2(x - 18, y - 6), Vector2(x + width + 18, y + 38), theme::PANEL, 0.8, 22);
+		const float switchWidth = 44;
+		RenderManager& renderer = getRenderer();
+
+		float livesWidth = renderer.getTextWidth("Lives", TF_NORMAL) + 14 + MAX_LIVES * (pipSize + 6) - 6;
+		float drunkWidth = renderer.getTextWidth("Drunk mode", TF_NORMAL) + 14 + switchWidth;
+		const float padding = 18;
+		const float gap = 20;
+		float x = 400 - (livesWidth + drunkWidth + 4 * padding + gap) / 2 + padding;
+
+		imgui.doPanel(Vector2(x - padding, y - 6), Vector2(x + livesWidth + padding, y + 38), theme::PANEL, 0.8, 22);
 		imgui.doText(Vector2(x, y), "Lives", TF_NORMAL);
-		x += labelWidth + 14;
+		x += renderer.getTextWidth("Lives", TF_NORMAL) + 14;
 		for (int i = 1; i <= MAX_LIVES; ++i)
 		{
 			float top = y + 9;
-			if (i <= mLives)
+			if (i <= mSettings.lives)
 				imgui.doPanel(Vector2(x, top), Vector2(x + pipSize, top + pipSize), theme::ACCENT, 1, pipSize / 2);
 			else
 				imgui.doPanel(Vector2(x, top), Vector2(x + pipSize, top + pipSize), theme::TEXT_DIM, 0.3, pipSize / 2);
 			x += pipSize + 6;
 		}
+
+		x += -6 + padding + gap + padding;
+		imgui.doPanel(Vector2(x - padding, y - 6), Vector2(x + drunkWidth + padding, y + 38), theme::PANEL, 0.8, 22);
+		imgui.doText(Vector2(x, y), "Drunk mode", TF_NORMAL, mSettings.drunk ? theme::ACCENT : theme::TEXT);
+		x += renderer.getTextWidth("Drunk mode", TF_NORMAL) + 14;
+		// a switch: the knob is on the right when it is on
+		float top = y + 6;
+		imgui.doPanel(Vector2(x, top), Vector2(x + switchWidth, top + 22), mSettings.drunk ? theme::ACCENT : theme::TEXT_DIM,
+				mSettings.drunk ? 1 : 0.3, 11);
+		float knob = mSettings.drunk ? x + switchWidth - 20 : x + 2;
+		imgui.doPanel(Vector2(knob, top + 2), Vector2(knob + 18, top + 20), theme::TEXT, 1, 9);
 	}
 
 	std::vector<Hint> hints = {
@@ -133,14 +155,15 @@ void KnockoutSetupState::step_impl()
 	if (!mProfiles.empty())
 		hints.push_back({"<>", theme::BUTTON_MENU, "Name"});
 	hints.push_back({"Y", theme::BUTTON_Y, "Lives"});
-	hints.push_back({"Start", theme::BUTTON_MENU, canStart() ? "Play" : "Play (2 players)", canStart()});
+	hints.push_back({"X", theme::BUTTON_X, "Drunk"});
+	hints.push_back({"Start", theme::BUTTON_MENU, "Play", canStart()});
 	hints.push_back({"Back", theme::BUTTON_MENU, mQuitConfirmFrames > 0 ? "Again to quit" : "Quit"});
 	doHints(536, hints);
 
-	std::string keyboard = "Keyboard:  W / Up join   S / Down leave   ";
+	std::string keyboard = "Keyboard:  W/Up join   S/Down leave   ";
 	if (!mProfiles.empty())
-		keyboard += "A D / Left Right name   ";
-	keyboard += "L lives   Enter play   Esc quit";
+		keyboard += "A D/Left Right name   ";
+	keyboard += "L lives   X drunk   Enter play   Esc quit";
 	imgui.doText(Vector2(400, 572), keyboard, TF_SMALL_FONT | TF_ALIGN_CENTER, theme::TEXT_DIM);
 
 	// ------------------------------------------------------------------------------------------
@@ -158,7 +181,7 @@ void KnockoutSetupState::step_impl()
 	{
 		mStartRequested = false;
 		if (canStart())
-			switchState(new KnockoutGameState(mPlayers, mLives));
+			switchState(new KnockoutGameState(mPlayers, mSettings));
 	}
 }
 
@@ -239,6 +262,8 @@ void KnockoutSetupState::handleController(const LocalController& controller, con
 
 	if (pressed.lives)
 		changeLives();
+	if (pressed.drunk)
+		mSettings.drunk = !mSettings.drunk;
 	if (pressed.start)
 		mStartRequested = true;
 	if (pressed.back)
@@ -291,7 +316,7 @@ void KnockoutSetupState::changeProfile(KnockoutPlayer& player, int direction)
 
 void KnockoutSetupState::changeLives()
 {
-	mLives = mLives % MAX_LIVES + 1;
+	mSettings.lives = mSettings.lives % MAX_LIVES + 1;
 }
 
 bool KnockoutSetupState::canStart() const

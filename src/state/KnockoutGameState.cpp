@@ -56,12 +56,13 @@ namespace
 	/// confirms that a player joined
 	const float JOIN_RUMBLE_STRENGTH = 0.4;
 	const int JOIN_RUMBLE_MS = 150;
+	const float SWAP_SOUND_VOLUME = 0.6;
 }
 
-KnockoutGameState::KnockoutGameState(std::vector<KnockoutPlayer> players, int lives)
+KnockoutGameState::KnockoutGameState(std::vector<KnockoutPlayer> players, KnockoutSettings settings)
 	: mPlayers(std::move(players))
-	, mLives(lives)
-	, mQueue(mPlayers.size(), lives)
+	, mSettings(settings)
+	, mQueue(mPlayers.size(), settings.lives)
 {
 }
 
@@ -70,7 +71,9 @@ KnockoutGameState::~KnockoutGameState() = default;
 void KnockoutGameState::init()
 {
 	std::shared_ptr<IUserConfigReader> config = IUserConfigReader::createUserConfigReader("config.xml");
-	SpeedController::getMainInstance()->setGameSpeed( (float)config->getInteger("gamefps") );
+	// drunk mode slows down everything, the physics stay the same
+	float speed = config->getFloat("gamefps") * (mSettings.drunk ? KnockoutSettings::DRUNK_SPEED : 1);
+	SpeedController::getMainInstance()->setGameSpeed(speed);
 
 	playSound(SoundManager::WHISTLE, ROUND_START_SOUND_VOLUME);
 
@@ -107,9 +110,9 @@ void KnockoutGameState::step_impl()
 	if (mWinnerSide != NO_PLAYER)
 	{
 		if (startPressed || returnPressed)
-			switchState(new KnockoutGameState(mPlayers, mLives));
+			switchState(new KnockoutGameState(mPlayers, mSettings));
 		else if (leavePressed || backPressed || escapePressed)
-			switchState(new KnockoutSetupState(mPlayers, mLives));
+			switchState(new KnockoutSetupState(mPlayers, mSettings));
 
 		++mWinnerFrames;
 		if (mWinnerFrames % 60 == 0)
@@ -125,7 +128,7 @@ void KnockoutGameState::step_impl()
 		}
 		else if (backPressed || escapePressed)
 		{
-			switchState(new KnockoutSetupState(mPlayers, mLives));
+			switchState(new KnockoutSetupState(mPlayers, mSettings));
 		}
 	}
 	else if (startPressed || escapePressed)
@@ -226,7 +229,7 @@ void KnockoutGameState::handleJoins(const LocalControllerWatcher::Presses& press
 
 		// every player of a match keeps their colour, so at most eight can ever take part
 		int number = KnockoutPlayer::freeNumber(mPlayers);
-		if (number == 0 || mQueue.addPlayer(mLives) == -1)
+		if (number == 0 || mQueue.addPlayer(mSettings.lives) == -1)
 			continue;
 
 		// latecomers get the first profile nobody plays with
@@ -270,6 +273,13 @@ void KnockoutGameState::showPlayersOnCourt()
 
 		if (active != mAnnouncedOnCourt[side] && mQueue.getWinner() == -1)
 		{
+			// a new player on court starts in the middle of their side, except at kick-off,
+			// where both blobs stand there already
+			if (mAnnouncedOnCourt[side] != -1)
+			{
+				mMatch->respawnBlob(side);
+				playSound(SoundManager::SWAP, SWAP_SOUND_VOLUME);
+			}
 			announceTurn(active);
 			mAnnouncedOnCourt[side] = active;
 		}
@@ -349,6 +359,13 @@ void KnockoutGameState::presentMatch()
 	imgui.doPanel(Vector2(400 - timeWidth / 2 - 14, 12), Vector2(400 + timeWidth / 2 + 14, 42), theme::PANEL, 0.75, 15);
 	imgui.doText(Vector2(400, 16), time, TF_SMALL_FONT | TF_ALIGN_CENTER);
 
+	if (mSettings.drunk)
+	{
+		float width = renderer.getTextWidth("Drunk mode", TF_SMALL_FONT);
+		imgui.doPanel(Vector2(788 - width - 28, 12), Vector2(788, 42), theme::ACCENT, 0.9, 15);
+		imgui.doText(Vector2(788 - 14, 16), "Drunk mode", TF_SMALL_FONT | TF_ALIGN_RIGHT);
+	}
+
 	if (!running)
 		return;
 
@@ -376,8 +393,8 @@ void KnockoutGameState::doNameTag(PlayerSide side)
 	const float pip = 10;
 	const float height = 40;
 	float width = 14 + dot + 10 + getRenderer().getTextWidth(name, TF_NORMAL) + 14;
-	if (mLives > 1)
-		width += 4 + mLives * (pip + 4);
+	if (mSettings.lives > 1)
+		width += 4 + mSettings.lives * (pip + 4);
 
 	float x = side == LEFT_PLAYER ? 12 : 788 - width;
 	const float y = 600 - 12 - height;
@@ -388,9 +405,9 @@ void KnockoutGameState::doNameTag(PlayerSide side)
 	imgui.doText(Vector2(x, y + 4), name, TF_NORMAL);
 	x += getRenderer().getTextWidth(name, TF_NORMAL) + 4;
 
-	if (mLives > 1)
+	if (mSettings.lives > 1)
 	{
-		for (int i = 1; i <= mLives; ++i)
+		for (int i = 1; i <= mSettings.lives; ++i)
 		{
 			float top = y + (height - pip) / 2;
 			bool alive = i <= mQueue.getLives(player);

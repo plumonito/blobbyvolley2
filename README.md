@@ -10,16 +10,19 @@ The game starts in the player menu.
 
 * Every connected gamepad and the two keyboard layouts (`W A S D` and the arrow keys)
   join by pressing jump, and leave with B (keyboard: down). With left / right you pick
-  your name from the players list (see below). Y (keyboard: `L`) sets the number of lives.
-  Start (keyboard: Enter) starts the match, once two players have joined.
+  your name from the players list (see below). Y (keyboard: `L`) sets the number of lives,
+  X (keyboard: `X`) switches drunk mode: the whole game runs at 60 % speed, so everybody
+  has more time to react. Start (keyboard: Enter) starts the match, once two players have
+  joined.
 * All players wait in one queue. The first two start on the left and right blob, the
   others wait at the back of the beach. While waiting you can walk around and jump.
   The order of the queue is shown by depth: the next player stands in front, everyone
   after them one row further back.
 * You keep your blob while your side has the ball. Once you have touched it and it passes
   the middle of the court, your turn is over: you walk back to the end of the queue and
-  the next player takes over your blob - on whichever side of the net it is. Gamepads
-  vibrate briefly when it is their player's turn.
+  the next player takes over your blob - on whichever side of the net it is. The new
+  player starts in the middle of that side, with a "bloop" sound, and their gamepad
+  vibrates briefly.
 * When your side makes a mistake (ball on the ground, fourth touch), you lose a life.
   Without lives left you are out.
 * New players can join at any time during the match, also with gamepads plugged in while

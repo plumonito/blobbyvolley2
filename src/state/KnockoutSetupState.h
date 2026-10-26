@@ -30,12 +30,13 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 	\brief the menu in which up to eight local players join a knockout match
 	\details Every keyboard layout and gamepad joins by pressing jump and leaves with
 			down (keyboard) or B (gamepad). With left / right, a player chooses their profile.
+			Y sets the number of lives, X switches drunk mode.
 			The players enter the court in the order in which they joined.
 */
 class KnockoutSetupState : public State
 {
 	public:
-		explicit KnockoutSetupState(std::vector<KnockoutPlayer> players = {}, int lives = 1);
+		explicit KnockoutSetupState(std::vector<KnockoutPlayer> players = {}, KnockoutSettings settings = KnockoutSettings());
 		~KnockoutSetupState() override;
 
 		void step_impl() override;
@@ -54,7 +55,7 @@ class KnockoutSetupState : public State
 		void drawPlayerCard(int slot, float x, float y);
 
 		std::vector<KnockoutPlayer> mPlayers;
-		int mLives;
+		KnockoutSettings mSettings;
 		std::vector<PlayerProfile> mProfiles;
 
 		LocalControllerWatcher mControllers;
@@ -69,4 +70,5 @@ class KnockoutSetupState : public State
 		/// the keys may still be held from the screen that led here
 		bool mLastReturn = true;
 		bool mLastLivesKey = true;
+		bool mLastDrunkKey = true;
 };

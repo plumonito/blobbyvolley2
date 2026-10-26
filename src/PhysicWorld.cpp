@@ -53,6 +53,15 @@ PhysicWorld::PhysicWorld()
 
 PhysicWorld::~PhysicWorld() = default;
 
+void PhysicWorld::respawnBlob(PlayerSide player)
+{
+	mBlobPosition[player] = Vector2(player == LEFT_PLAYER ? 200 : 600, GROUND_PLANE_HEIGHT);
+	mBlobVelocity[player] = Vector2(0, 0);
+	mBlobState[player] = 0;
+	mCurrentBlobbyAnimationSpeed[player] = 0;
+	blobbyStartAnimation(player);
+}
+
 bool PhysicWorld::blobHitGround(PlayerSide player) const
 {
 	if (player == LEFT_PLAYER || player == RIGHT_PLAYER)

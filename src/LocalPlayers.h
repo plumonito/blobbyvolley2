@@ -68,6 +68,7 @@ struct LocalControllerButtons
 	bool jump = false;
 	bool leave = false;	///< keyboard: down, gamepad: B
 	bool lives = false;	///< change the number of lives, gamepad: Y
+	bool drunk = false;	///< switch drunk mode on or off, gamepad: X
 	bool start = false;	///< gamepad: start
 	bool back = false;	///< gamepad: back / select
 
@@ -92,6 +93,19 @@ class LocalControllerWatcher
 
 	private:
 		Presses mLastButtons;
+};
+
+/*! \struct KnockoutSettings
+	\brief the settings of a knockout match, chosen in the setup menu
+*/
+struct KnockoutSettings
+{
+	int lives = 1;
+	/// drunk mode: the whole game runs slower, so everybody has more time to react
+	bool drunk = false;
+
+	/// speed of the game in drunk mode, relative to the normal speed
+	static constexpr float DRUNK_SPEED = 0.6f;
 };
 
 /*! \struct KnockoutPlayer

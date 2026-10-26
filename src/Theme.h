@@ -31,6 +31,7 @@ namespace theme
 	const Color ACCENT(255, 200, 64);
 	const Color BUTTON_A(88, 196, 96);
 	const Color BUTTON_B(232, 80, 80);
+	const Color BUTTON_X(72, 132, 232);
 	const Color BUTTON_Y(240, 192, 48);
 	const Color BUTTON_MENU(120, 132, 152);
 }

@@ -64,6 +64,7 @@ class SoundManager : public ObjectCounter<SoundManager>
 		// Known Sounds
 		static constexpr const char* IMPACT  = "sounds/bums.wav";
 		static constexpr const char* WHISTLE = "sounds/pfiff.wav";
+		static constexpr const char* SWAP    = "sounds/swap.wav";
 
 	private:
 

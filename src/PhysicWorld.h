@@ -58,6 +58,9 @@ class PhysicWorld : public ObjectCounter<PhysicWorld>
 		float getBlobState(PlayerSide player) const;
 		// this function calculates whether the player is on the ground
 		bool blobHitGround(PlayerSide player) const;
+		/// puts the blob back to its start position in the middle of its side, standing still,
+		/// and lets it squish as if it had just landed
+		void respawnBlob(PlayerSide player);
 
 		// Important: This assumes a fixed framerate of 60 FPS!
 		void step(const PlayerInput& leftInput, const PlayerInput& rightInput,

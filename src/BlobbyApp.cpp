@@ -81,6 +81,7 @@ BlobbyApp::BlobbyApp(std::unique_ptr<State> initState, const IUserConfigReader& 
 	/// \todo play sound is misleading. what we actually want to do is load the sound
 	mSoundManager->playSound(SoundManager::IMPACT, 0.0);
 	mSoundManager->playSound(SoundManager::WHISTLE, 0.0);
+	mSoundManager->playSound(SoundManager::SWAP, 0.0);
 
 	mIMGUI.reset(new IMGUI());
 

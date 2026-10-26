@@ -43,7 +43,7 @@ class SwitchableInputSource;
 class KnockoutGameState : public State
 {
 	public:
-		KnockoutGameState(std::vector<KnockoutPlayer> players, int lives);
+		KnockoutGameState(std::vector<KnockoutPlayer> players, KnockoutSettings settings);
 		~KnockoutGameState() override;
 
 		// implementation of the State Interface
@@ -59,7 +59,8 @@ class KnockoutGameState : public State
 		/// lets controllers that pressed jump and are not part of the match yet join the queue
 		void handleJoins(const LocalControllerWatcher::Presses& presses);
 		bool hasJoined(const LocalController& controller) const;
-		/// connects the blobs to the players on court and shows them
+		/// connects the blobs to the players on court and shows them. A player who just came
+		/// on court starts in the middle of their side, with a sound.
 		void showPlayersOnCourt();
 		/// tells a player that it is their turn by letting their gamepad vibrate
 		void announceTurn(int player);
@@ -75,7 +76,7 @@ class KnockoutGameState : public State
 		void doNameTag(PlayerSide side);
 
 		std::vector<KnockoutPlayer> mPlayers;
-		int mLives;
+		KnockoutSettings mSettings;
 		KnockoutQueue mQueue;
 		TurnTracker mTurns;
 		WaitingPlayers mWaiting;

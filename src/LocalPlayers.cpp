@@ -115,6 +115,7 @@ LocalControllerButtons LocalControllerButtons::poll(const LocalController& contr
 		buttons.jump = inputMgr.isGamepadButtonDown(pad, SDL_CONTROLLER_BUTTON_A);
 		buttons.leave = inputMgr.isGamepadButtonDown(pad, SDL_CONTROLLER_BUTTON_B);
 		buttons.lives = inputMgr.isGamepadButtonDown(pad, SDL_CONTROLLER_BUTTON_Y);
+		buttons.drunk = inputMgr.isGamepadButtonDown(pad, SDL_CONTROLLER_BUTTON_X);
 		buttons.start = inputMgr.isGamepadButtonDown(pad, SDL_CONTROLLER_BUTTON_START);
 		buttons.back = inputMgr.isGamepadButtonDown(pad, SDL_CONTROLLER_BUTTON_BACK);
 	}
@@ -129,6 +130,7 @@ LocalControllerButtons LocalControllerButtons::pressedSince(const LocalControlle
 	pressed.jump = jump && !before.jump;
 	pressed.leave = leave && !before.leave;
 	pressed.lives = lives && !before.lives;
+	pressed.drunk = drunk && !before.drunk;
 	pressed.start = start && !before.start;
 	pressed.back = back && !before.back;
 	return pressed;

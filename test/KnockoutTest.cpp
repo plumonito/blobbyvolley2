@@ -8,6 +8,9 @@
 #include "WaitingPlayers.h"
 #include "PlayerProfile.h"
 #include "SquishAnimation.h"
+#include "DuelMatch.h"
+#include "GameConstants.h"
+#include "InputSource.h"
 #include "GameLogic.h"
 #include "DuelMatchState.h"
 
@@ -452,6 +455,50 @@ BOOST_AUTO_TEST_CASE( waiting_blob_squishes_when_jumping )
 		deepest = std::max(deepest, waiting.getViews()[0].frame);
 	}
 	BOOST_CHECK_GT(deepest, 1);
+}
+
+// ---------------------------------------------------------------------------------------
+// swapping players
+// ---------------------------------------------------------------------------------------
+
+namespace
+{
+	class FixedInputSource : public InputSource
+	{
+		public:
+			explicit FixedInputSource(PlayerInputAbs input) : mInput(input) {}
+		private:
+			PlayerInputAbs getNextInput() override { return mInput; }
+			PlayerInputAbs mInput;
+	};
+}
+
+// the next player takes over the blob standing in the middle of its side
+BOOST_AUTO_TEST_CASE( respawn_puts_blob_in_the_middle )
+{
+	DuelMatch match(false, FALLBACK_RULES_NAME, 15);
+	match.setInputSources(std::make_shared<FixedInputSource>(PlayerInputAbs(false, true, true)),
+						  std::make_shared<FixedInputSource>(PlayerInputAbs(true, false, false)));
+	for (int i = 0; i < 20; ++i)
+		match.step();
+
+	// the left blob ran to the right and jumped, the right one ran to the left
+	BOOST_CHECK_GT(match.getBlobPosition(LEFT_PLAYER).x, 250);
+	BOOST_CHECK_LT(match.getBlobPosition(LEFT_PLAYER).y, GROUND_PLANE_HEIGHT - 10);
+	BOOST_CHECK_LT(match.getBlobPosition(RIGHT_PLAYER).x, 550);
+
+	match.respawnBlob(LEFT_PLAYER);
+	match.respawnBlob(RIGHT_PLAYER);
+	BOOST_CHECK_EQUAL(match.getBlobPosition(LEFT_PLAYER).x, 200);
+	BOOST_CHECK_EQUAL(match.getBlobPosition(LEFT_PLAYER).y, GROUND_PLANE_HEIGHT);
+	BOOST_CHECK_EQUAL(match.getBlobPosition(RIGHT_PLAYER).x, 600);
+	BOOST_CHECK_EQUAL(match.getBlobVelocity(LEFT_PLAYER).x, 0);
+	BOOST_CHECK_EQUAL(match.getBlobVelocity(LEFT_PLAYER).y, 0);
+
+	// it lands with a squish
+	match.setInputSources(std::make_shared<InputSource>(), std::make_shared<InputSource>());
+	match.step();
+	BOOST_CHECK_GT(match.getBlobState(LEFT_PLAYER), 0);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

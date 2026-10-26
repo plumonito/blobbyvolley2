@@ -326,6 +326,11 @@ void DuelMatch::resetBall( PlayerSide side )
 	mPhysicWorld->setBallAngularVelocity( (side == RIGHT_PLAYER ? -1 : 1) * STANDARD_BALL_ANGULAR_VELOCITY );
 }
 
+void DuelMatch::respawnBlob(PlayerSide side)
+{
+	mPhysicWorld->respawnBlob(side);
+}
+
 bool DuelMatch::canStartRound(PlayerSide servingPlayer) const
 {
 	Vector2 ballVelocity = mPhysicWorld->getBallVelocity();

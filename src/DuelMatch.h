@@ -66,6 +66,8 @@ class DuelMatch : public ObjectCounter<DuelMatch>
 		// events triggered by the network
 		void setScore(int left, int right);
 		void resetBall(PlayerSide side);
+		/// puts a blob back to the middle of its side, see PhysicWorld::respawnBlob
+		void respawnBlob(PlayerSide side);
 
 		// This reports the index of the winning player and -1 if the
 		// game is still running
