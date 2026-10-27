@@ -34,4 +34,6 @@ namespace theme
 	const Color BUTTON_X(72, 132, 232);
 	const Color BUTTON_Y(240, 192, 48);
 	const Color BUTTON_MENU(120, 132, 152);
+	/// the spectators in the background
+	const Color SPECTATOR(150, 150, 150);
 }

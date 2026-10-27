@@ -18,6 +18,7 @@ set(SRC
 	../src/KnockoutQueue.cpp ../src/KnockoutQueue.h
 	../src/PlayerProfile.cpp ../src/PlayerProfile.h
 	../src/KnockoutTurns.cpp ../src/KnockoutTurns.h
+	../src/Crowd.cpp ../src/Crowd.h
 	../src/WaitingPlayers.cpp ../src/WaitingPlayers.h
 	../src/IScriptableComponent.cpp ../src/IScriptableComponent.h
 	../src/UserConfig.cpp     ../src/UserConfig.h

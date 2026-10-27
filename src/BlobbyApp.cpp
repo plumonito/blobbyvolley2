@@ -69,7 +69,7 @@ void BlobbyApp::step()
 	}
 }
 
-BlobbyApp::BlobbyApp(std::unique_ptr<State> initState, const IUserConfigReader& config) :
+BlobbyApp::BlobbyApp(std::unique_ptr<State> initState, const IUserConfigReader& config, bool fullscreen) :
 	mCurrentState(std::move(initState)),
 	mSoundManager( new SoundManager ),
 	mInputMgr( new InputManager(this) )
@@ -85,7 +85,7 @@ BlobbyApp::BlobbyApp(std::unique_ptr<State> initState, const IUserConfigReader& 
 
 	mIMGUI.reset(new IMGUI());
 
-	setupRenderManager(config);
+	setupRenderManager(config, fullscreen);
 }
 
 SoundManager& BlobbyApp::getSoundManager() const
@@ -112,10 +112,9 @@ RenderManager& BlobbyApp::getRenderManager() const
 	return *mRenderMgr;
 }
 
-void BlobbyApp::setupRenderManager(const IUserConfigReader& config) {
+void BlobbyApp::setupRenderManager(const IUserConfigReader& config, bool fullscreen) {
 	mRenderMgr.reset(new RenderManager());
 
-	bool fullscreen = config.getBool("fullscreen");
 	mRenderMgr->init(BASE_RESOLUTION_X, BASE_RESOLUTION_Y, fullscreen);
 
 	std::string bg = std::string("backgrounds/") + config.getString("background");

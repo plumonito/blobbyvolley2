@@ -32,7 +32,8 @@ struct SDL_Window;
 
 class BlobbyApp {
 	public:
-		explicit BlobbyApp(std::unique_ptr<State> initState, const IUserConfigReader& config);
+		/// fullscreen: fill the screen, otherwise open a window
+		BlobbyApp(std::unique_ptr<State> initState, const IUserConfigReader& config, bool fullscreen = true);
 
 		void step();
 
@@ -59,7 +60,7 @@ class BlobbyApp {
 		/// Gets the game window
 		SDL_Window* getWindow() const;
 
-		void setupRenderManager(const IUserConfigReader& config);
+		void setupRenderManager(const IUserConfigReader& config, bool fullscreen);
 
 	private:
 		// We keep two references to states: One for the currently active one, and one

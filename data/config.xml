@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <userconfig>
-	<var name="fullscreen" value="false"/>
 	<var name="gamefps" value="75"/>
 	<var name="showfps" value="false"/>
 	<var name="global_volume" value="1.000000"/>

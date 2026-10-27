@@ -66,8 +66,9 @@ class RenderManager : public ObjectCounter<RenderManager>
 		bool setBackground(const std::string& filename);
 
 		/// the look of a blob: its colour and optionally a face image (in the players folder),
-		/// which is wrapped around it. Returns an id for setBlobSkin and drawBlob.
-		int getBlobSkin(Color color, const std::string& faceImage = "");
+		/// which is wrapped around it. A faded face is almost grey and a little darker, for
+		/// blobs in the background. Returns an id for setBlobSkin and drawBlob.
+		int getBlobSkin(Color color, const std::string& faceImage = "", bool faded = false);
 		/// the look of the blob on a side of the court
 		void setBlobSkin(PlayerSide side, int skin);
 
@@ -100,6 +101,7 @@ class RenderManager : public ObjectCounter<RenderManager>
 		{
 			Color color;
 			std::string face;
+			bool faded;
 			std::vector<SDL_Texture*> frames;
 		};
 

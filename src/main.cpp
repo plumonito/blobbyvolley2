@@ -125,7 +125,12 @@ int main(int argc, char* argv[])
 
 		DEBUG_STATUS("starting mainloop");
 
-		BlobbyApp app( std::unique_ptr<State>(new KnockoutSetupState()), gameConfig );
+		// a party game: always on the whole screen, a window only on request (for development)
+		bool window = false;
+		for (int i = 1; i < argc; ++i)
+			window = window || std::strcmp(argv[i], "--window") == 0;
+
+		BlobbyApp app( std::unique_ptr<State>(new KnockoutSetupState()), gameConfig, !window );
 
 		while (running)
 		{

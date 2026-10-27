@@ -50,6 +50,7 @@ set(blobby_SRC
 	Theme.h
 	UserConfig.cpp UserConfig.h
 	Vector.h
+	Crowd.cpp Crowd.h
 	WaitingPlayers.cpp WaitingPlayers.h
 	input_device/GamepadInput.cpp
 	input_device/KeyboardInput.cpp

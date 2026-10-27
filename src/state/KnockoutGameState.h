@@ -24,10 +24,12 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #include <vector>
 
 #include "State.h"
+#include "Crowd.h"
 #include "Global.h"
 #include "KnockoutQueue.h"
 #include "KnockoutTurns.h"
 #include "LocalPlayers.h"
+#include "PlayerProfile.h"
 #include "SquishAnimation.h"
 #include "WaitingPlayers.h"
 
@@ -56,6 +58,9 @@ class KnockoutGameState : public State
 		void updateKnockout();
 		/// lets the waiting players walk and jump
 		void stepWaitingPlayers();
+		/// everybody from the players list who is not playing (any more) watches, and cheers
+		/// when a rally ends
+		void updateCrowd();
 		/// lets controllers that pressed jump and are not part of the match yet join the queue
 		void handleJoins(const LocalControllerWatcher::Presses& presses);
 		bool hasJoined(const LocalController& controller) const;
@@ -80,6 +85,11 @@ class KnockoutGameState : public State
 		KnockoutQueue mQueue;
 		TurnTracker mTurns;
 		WaitingPlayers mWaiting;
+		/// the players list, and the spectators from it
+		std::vector<PlayerProfile> mProfiles;
+		Crowd mCrowd;
+		/// the grey look of every profile as a spectator
+		std::vector<int> mCrowdSkins;
 
 		std::unique_ptr<DuelMatch> mMatch;
 		std::vector<std::shared_ptr<InputSource>> mPlayerInputs;

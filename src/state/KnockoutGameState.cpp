@@ -57,6 +57,8 @@ namespace
 	const float JOIN_RUMBLE_STRENGTH = 0.4;
 	const int JOIN_RUMBLE_MS = 150;
 	const float SWAP_SOUND_VOLUME = 0.6;
+	/// the crowd cheers again and again for the winner
+	const int WINNER_CHEER_FRAMES = 90;
 }
 
 KnockoutGameState::KnockoutGameState(std::vector<KnockoutPlayer> players, KnockoutSettings settings)
@@ -90,6 +92,11 @@ void KnockoutGameState::init()
 	mMatch->setInputSources(mCourtInputs[LEFT_PLAYER], mCourtInputs[RIGHT_PLAYER]);
 	showPlayersOnCourt();
 	mWaiting.setQueue(mQueue.getWaiting());
+
+	mProfiles = PlayerProfile::load();
+	for (const auto& profile : mProfiles)
+		mCrowdSkins.push_back(getRenderer().getBlobSkin(theme::SPECTATOR, profile.face, true));
+	updateCrowd();
 }
 
 void KnockoutGameState::step_impl()
@@ -118,6 +125,9 @@ void KnockoutGameState::step_impl()
 		if (mWinnerFrames % 60 == 0)
 			mWinnerSquish.start();
 		mWinnerSquish.step();
+		if (mWinnerFrames % WINNER_CHEER_FRAMES == 1)
+			mCrowd.cheer();
+		mCrowd.step();
 	}
 	else if (mPaused)
 	{
@@ -143,6 +153,7 @@ void KnockoutGameState::step_impl()
 		mMatch->step();
 		updateKnockout();
 		stepWaitingPlayers();
+		updateCrowd();
 		playSounds();
 
 		int winner = mQueue.getWinner();
@@ -219,6 +230,27 @@ void KnockoutGameState::stepWaitingPlayers()
 	});
 }
 
+void KnockoutGameState::updateCrowd()
+{
+	std::vector<int> members;
+	for (unsigned i = 0; i < mProfiles.size(); ++i)
+	{
+		bool playing = false;
+		for (unsigned player = 0; player < mPlayers.size(); ++player)
+			playing = playing || (mPlayers[player].name == mProfiles[i].name && !mQueue.isKnockedOut(player));
+		if (!playing)
+			members.push_back(i);
+	}
+	mCrowd.setMembers(members);
+
+	for (const auto& event : mMatch->getEvents())
+	{
+		if (event.event == MatchEvent::PLAYER_ERROR)
+			mCrowd.cheer();
+	}
+	mCrowd.step();
+}
+
 void KnockoutGameState::handleJoins(const LocalControllerWatcher::Presses& presses)
 {
 	for (const auto& press : presses)
@@ -234,7 +266,7 @@ void KnockoutGameState::handleJoins(const LocalControllerWatcher::Presses& press
 
 		// latecomers get the first profile nobody plays with
 		KnockoutPlayer player{controller, number, "", ""};
-		for (const auto& profile : PlayerProfile::load())
+		for (const auto& profile : mProfiles)
 		{
 			bool taken = std::any_of(mPlayers.begin(), mPlayers.end(),
 					[&](const KnockoutPlayer& other) { return other.name == profile.name; });
@@ -318,9 +350,12 @@ void KnockoutGameState::presentMatch()
 {
 	const bool running = mWinnerSide == NO_PLAYER;
 
-	// the waiting players walk around at the back of the beach, the next one in front
+	// the crowd at the far end of the beach, then the waiting players in front of it, the
+	// next one in front
 	std::vector<WaitingPlayers::View> waiting;
 	std::vector<RenderManager::WaitingBlob> waitingBlobs;
+	for (const auto& view : mCrowd.getViews())
+		waitingBlobs.push_back(RenderManager::WaitingBlob{view.position, view.scale, mCrowdSkins[view.member], view.frame});
 	if (running)
 	{
 		waiting = mWaiting.getViews();

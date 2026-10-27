@@ -44,6 +44,9 @@ namespace
 	const int BALL_SIZE = 64;
 	/// text textures not used for this many frames are thrown away
 	const unsigned TEXT_CACHE_FRAMES = 300;
+	/// colour left in a faded face, and its brightness
+	const float FADED_SATURATION = 0.25;
+	const float FADED_BRIGHTNESS = 0.85;
 
 	float fontSize(unsigned int flags)
 	{
@@ -215,11 +218,11 @@ SDL_Surface* RenderManager::loadSurface(const std::string& filename)
 //		Blobs
 // -------------------------------------------------------------------------------------------------
 
-int RenderManager::getBlobSkin(Color color, const std::string& faceImage)
+int RenderManager::getBlobSkin(Color color, const std::string& faceImage, bool faded)
 {
 	for (unsigned i = 0; i < mSkins.size(); ++i)
 	{
-		if (mSkins[i].color == color && mSkins[i].face == faceImage)
+		if (mSkins[i].color == color && mSkins[i].face == faceImage && mSkins[i].faded == faded)
 			return i;
 	}
 
@@ -255,7 +258,17 @@ int RenderManager::getBlobSkin(Color color, const std::string& faceImage)
 		}
 	}
 
-	BlobSkin skin{color, faceImage, {}};
+	if (faded)
+	{
+		for (unsigned i = 0; i < face.size(); i += 4)
+		{
+			float grey = 0.3f * face[i] + 0.59f * face[i + 1] + 0.11f * face[i + 2];
+			for (int c = 0; c < 3; ++c)
+				face[i + c] = (std::uint8_t)lround((grey + (face[i + c] - grey) * FADED_SATURATION) * FADED_BRIGHTNESS);
+		}
+	}
+
+	BlobSkin skin{color, faceImage, faded, {}};
 	for (auto frame : mBlobFrames)
 	{
 		SDL_Surface* surface = createSkinFrame(frame, color, face, faceSize);
@@ -399,8 +412,8 @@ void RenderManager::drawGame(const DuelMatchState& gameState)
 	for (const auto& blob : mWaitingBlobs)
 		drawBlob(blob.position, blob.skin, blob.scale, blob.frame);
 
-	// draw the net rod over them again
-	SDL_Rect rod = { 400 - 7, 300, 14, 300 };
+	// draw the net rod over them again, from its rounded top
+	SDL_Rect rod = { 400 - 7, 277, 14, 323 };
 	SDL_RenderCopy(mRenderer, mBackground, &rod, &rod);
 
 	// marker for a ball that is above the screen

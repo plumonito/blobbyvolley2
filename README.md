@@ -25,6 +25,8 @@ The game starts in the player menu.
   vibrates briefly.
 * When your side makes a mistake (ball on the ground, fourth touch), you lose a life.
   Without lives left you are out.
+* Everybody from the players list who is not playing, or is already out, watches from the
+  far end of the beach: small grey blobs that hop around and cheer whenever a rally ends.
 * New players can join at any time during the match, also with gamepads plugged in while
   playing: press jump and you queue up last (up to 8 players per match).
 * Start (keyboard: Esc) pauses the match.
@@ -52,8 +54,10 @@ are called Player 1 to Player 8 and their blobs have plain colours.
 ## Settings
 
 `config.xml` in `~/.local/share/blobby` (created on the first start from `data/config.xml`)
-holds the settings: `fullscreen`, `gamefps` (game speed, 75 is normal), `global_volume`,
+holds the settings: `gamefps` (game speed, 75 is normal), `global_volume`,
 `mute`, `background` and `rules` (a Lua script in `data/rules`).
+
+The game always fills the whole screen. `blobby --window` opens it in a window instead.
 
 ## Build and run on Linux
 

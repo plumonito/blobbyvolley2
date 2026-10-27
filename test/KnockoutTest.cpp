@@ -1,11 +1,13 @@
 #include <boost/test/unit_test.hpp>
 
 #include <deque>
+#include <set>
 #include <random>
 
 #include "KnockoutQueue.h"
 #include "KnockoutTurns.h"
 #include "WaitingPlayers.h"
+#include "Crowd.h"
 #include "PlayerProfile.h"
 #include "SquishAnimation.h"
 #include "DuelMatch.h"
@@ -499,6 +501,136 @@ BOOST_AUTO_TEST_CASE( respawn_puts_blob_in_the_middle )
 	match.setInputSources(std::make_shared<InputSource>(), std::make_shared<InputSource>());
 	match.step();
 	BOOST_CHECK_GT(match.getBlobState(LEFT_PLAYER), 0);
+}
+
+namespace
+{
+	/// the bottom of a spectator
+	float crowdFeet(const Crowd::View& view)
+	{
+		return view.position.y + BLOBBY_HEIGHT * view.scale / 2;
+	}
+
+	/// whether a spectator is jumping: their feet are above the ground at their depth
+	bool inTheAir(const Crowd::View& view)
+	{
+		float depth = (view.scale - Crowd::FRONT_SCALE) / (Crowd::BACK_SCALE - Crowd::FRONT_SCALE);
+		float ground = Crowd::FRONT_GROUND + (Crowd::BACK_GROUND - Crowd::FRONT_GROUND) * depth;
+		return crowdFeet(view) < ground - 1;
+	}
+
+	const Crowd::View* findSpectator(const std::vector<Crowd::View>& views, int member)
+	{
+		for (const auto& view : views)
+		{
+			if (view.member == member)
+				return &view;
+		}
+		return nullptr;
+	}
+}
+
+// spectators come and go, the others keep their place
+BOOST_AUTO_TEST_CASE( crowd_members_come_and_go )
+{
+	Crowd crowd(1);
+	crowd.setMembers({0, 1, 2});
+	auto before = crowd.getViews();
+	BOOST_CHECK_EQUAL(before.size(), 3u);
+
+	crowd.setMembers({1, 2, 5});
+	auto after = crowd.getViews();
+	BOOST_REQUIRE_EQUAL(after.size(), 3u);
+	BOOST_CHECK(findSpectator(after, 0) == nullptr);
+	BOOST_REQUIRE(findSpectator(after, 5) != nullptr);
+	for (int member : {1, 2})
+	{
+		BOOST_CHECK_EQUAL(findSpectator(after, member)->position.x, findSpectator(before, member)->position.x);
+		BOOST_CHECK_EQUAL(findSpectator(after, member)->scale, findSpectator(before, member)->scale);
+	}
+}
+
+// the crowd is smaller than the last row of waiting players, spread over the beach and
+// drawn from the back to the front
+BOOST_AUTO_TEST_CASE( crowd_stands_behind_the_queue )
+{
+	Crowd crowd(2);
+	std::vector<int> members;
+	for (int i = 0; i < 38; ++i)
+		members.push_back(i);
+	crowd.setMembers(members);
+
+	// of the eight players at most six wait, in rows 0 to 5
+	const float backRowScale = WaitingPlayers::getRowScale(5);
+	float left = 800, right = 0;
+	for (int frame = 0; frame < 300; ++frame)
+	{
+		auto views = crowd.getViews();
+		BOOST_REQUIRE_EQUAL(views.size(), members.size());
+		for (unsigned i = 0; i < views.size(); ++i)
+		{
+			BOOST_CHECK_LT(views[i].scale, backRowScale);
+			BOOST_CHECK_LE(crowdFeet(views[i]), Crowd::FRONT_GROUND + 0.01);
+			if (i > 0)
+				BOOST_CHECK_LE(views[i - 1].scale, views[i].scale);
+			left = std::min(left, views[i].position.x);
+			right = std::max(right, views[i].position.x);
+		}
+		crowd.step();
+	}
+	BOOST_CHECK_LT(left, 100);
+	BOOST_CHECK_GT(right, 700);
+}
+
+// left alone, spectators hop around and squish
+BOOST_AUTO_TEST_CASE( crowd_hops_by_itself )
+{
+	Crowd crowd(3);
+	std::vector<int> members;
+	for (int i = 0; i < 20; ++i)
+		members.push_back(i);
+	crowd.setMembers(members);
+
+	std::set<int> jumped;
+	bool squished = false;
+	for (int frame = 0; frame < 600; ++frame)
+	{
+		crowd.step();
+		for (const auto& view : crowd.getViews())
+		{
+			if (inTheAir(view))
+				jumped.insert(view.member);
+			squished = squished || view.frame > 0;
+		}
+	}
+	BOOST_CHECK_GT(jumped.size(), members.size() / 2);
+	BOOST_CHECK(squished);
+}
+
+// when the crowd cheers, everybody jumps within a moment
+BOOST_AUTO_TEST_CASE( crowd_cheers_together )
+{
+	Crowd crowd(4);
+	std::vector<int> members;
+	for (int i = 0; i < 30; ++i)
+		members.push_back(i);
+	crowd.setMembers(members);
+	// let the first hops after arriving calm down
+	for (int frame = 0; frame < 120; ++frame)
+		crowd.step();
+
+	crowd.cheer();
+	std::set<int> jumped;
+	for (int frame = 0; frame < 30; ++frame)
+	{
+		crowd.step();
+		for (const auto& view : crowd.getViews())
+		{
+			if (inTheAir(view))
+				jumped.insert(view.member);
+		}
+	}
+	BOOST_CHECK_EQUAL(jumped.size(), members.size());
 }
 
 BOOST_AUTO_TEST_SUITE_END()
