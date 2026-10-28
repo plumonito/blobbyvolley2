@@ -61,30 +61,50 @@ The game always fills the whole screen. `blobby --window` opens it in a window i
 
 ## Build and run on Linux
 
-1. Install the dependencies (Debian / Ubuntu):
+1. Install the dependencies.
+   Debian / Ubuntu:
 ```bash
-sudo apt-get install g++ cmake libsdl2-dev libboost-dev libphysfs-dev
+sudo apt-get install git g++ cmake libsdl2-dev libboost-dev libphysfs-dev unzip
 ```
-2. Build:
+   Fedora: `sudo dnf install git gcc-c++ cmake SDL2-devel boost-devel physfs-devel unzip`.
+   Arch: `sudo pacman -S git gcc cmake sdl2 boost physfs unzip`.
+2. Get the code. The game lives on the `feature/knockout-mode` branch; the repository's
+   default branch is the original Blobby Volley 2.
+```bash
+git clone -b feature/knockout-mode https://github.com/plumonito/blobbyvolley2.git blobby-knockout
+cd blobby-knockout
+```
+3. Build:
 ```bash
 cmake -S . -B build
 cmake --build build -j
 ```
-3. Run it from the repository folder, so it finds its data:
+4. Run it from the repository folder, so it finds its data:
 ```bash
 build/src/blobby
 ```
-4. Or install it into your home folder (`~/.local`, no root needed): the game is then
-   started with `blobby` and shows up in the application menu.
+5. Or install it into your home folder (`~/.local`, no root needed): the game is then
+   started with `blobby` (if `~/.local/bin` is on your `PATH`) or from the application menu
+   as "Blobby Knockout".
 ```bash
 cmake --install build
 ```
-   The game data goes to `~/.local/share/blobby-knockout`; put your players there, e.g.
-   `unzip players.zip -d ~/.local/share/blobby-knockout` for a zip with a `players` folder.
-   For another place, configure with `-DCMAKE_INSTALL_PREFIX=/usr/local` (the data folder is
-   built into the game, so set it when configuring, not when installing).
+   The game data goes to `~/.local/share/blobby-knockout`. For another place, configure
+   with `-DCMAKE_INSTALL_PREFIX=/usr/local` (the data folder is built into the game, so set
+   it when configuring, not when installing).
+6. Add your players. The faces are not in the repository (it is public); copy the
+   `players.zip` of your group to the new PC and unpack it into the data folder:
+```bash
+unzip -o players.zip -d ~/.local/share/blobby-knockout
+```
+   When playing from the repository folder without installing, unpack it into `data`
+   instead (`unzip -o players.zip -d data`). The zip holds a `players` folder with
+   `players.txt` and the face images; to make one from photos see
+   [data/players/README.md](data/players/README.md). Without it everybody plays as
+   Player 1 to 8 with plain colours.
 
-The unit tests are built with `-DBUILD_TESTS=ON` and run with `ctest --test-dir build`.
+To update later: `git pull`, then steps 3 and 5 again. The unit tests are built with
+`-DBUILD_TESTS=ON` and run with `ctest --test-dir build`.
 
 ## Credits
 

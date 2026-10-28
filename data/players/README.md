@@ -20,9 +20,13 @@ tilted or sideways photos), turns it upright, crops the head to fit the blob, cu
 face and hair and writes the PNG plus the line in `players.txt`:
 
 ```
-uv venv -p 3.12 /tmp/faces-venv && VIRTUAL_ENV=/tmp/faces-venv uv pip install -r tools/faces/requirements.txt
-/tmp/faces-venv/bin/python tools/faces/prepare_faces.py ~/photos --names names.txt --preview sheet.jpg
+uv venv -p 3.12 ~/.cache/blobby-knockout/venv
+VIRTUAL_ENV=~/.cache/blobby-knockout/venv uv pip install -r tools/faces/requirements.txt
+~/.cache/blobby-knockout/venv/bin/python tools/faces/prepare_faces.py ~/photos --names names.txt --preview sheet.jpg
 ```
+
+MediaPipe needs Python 3.12 or older, hence the separate environment (about 1 GB, so not
+in `/tmp`). The face models are downloaded on the first run.
 
 `names.txt` maps photos to names, one `photo;Name` per line, where `photo` is the start of
 the photo's file name. Look at `sheet.jpg` to check the results.
