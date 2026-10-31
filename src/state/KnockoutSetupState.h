@@ -31,7 +31,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 	\details Every keyboard layout and gamepad joins by pressing jump and leaves with
 			down (keyboard) or B (gamepad). With left / right, a player chooses their profile.
 			Y sets the number of lives, X switches drunk mode.
-			The players enter the court in the order in which they joined.
+			The match shuffles the order in which the players enter the court.
 */
 class KnockoutSetupState : public State
 {

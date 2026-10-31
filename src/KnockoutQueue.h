@@ -33,13 +33,18 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 			When a side makes a mistake, the player on court there loses a life and leaves the
 			court as well; without lives left, they are knocked out instead of queueing up again.
 			Once nobody is waiting, the last two players stay on court until one of them is out.
-			New players can join at any time before the match is decided: they queue up last.
+			When a player is knocked out and only two are left, those two play the final: best
+			of three, so both get FINAL_LIVES lives, whatever they had left.
+			New players can join at any time before the final: they queue up last.
 			The last player standing wins.
 			Players are identified by their index, in the order in which they joined.
 */
 class KnockoutQueue
 {
 	public:
+		/// lives of both finalists: the final is played best of three
+		static constexpr int FINAL_LIVES = 2;
+
 		/// players 0 and 1 start on the left and right side, the others wait in ascending order
 		KnockoutQueue(int playerCount, int lives);
 
@@ -50,7 +55,7 @@ class KnockoutQueue
 		bool update(const bool turnOver[MAX_PLAYERS], const bool error[MAX_PLAYERS]);
 
 		/// a new player joins the match and waits at the end of the queue
-		/// \return the index of the new player, or -1 if the match is already decided
+		/// \return the index of the new player, or -1 once the final has started
 		int addPlayer(int lives);
 		/// number of players who ever took part, including those knocked out
 		int getPlayerCount() const { return mLives.size(); }
@@ -69,6 +74,10 @@ class KnockoutQueue
 		int getWinner() const;
 		/// players knocked out by the last update
 		const std::vector<int>& getKnockedOut() const { return mKnockedOut; }
+		/// whether the two players on court play the final
+		bool isFinal() const { return mFinal; }
+		/// whether the final started with the last update
+		bool hasFinalStarted() const { return mFinalStarted; }
 
 	private:
 		/// the player on that side leaves the court, if someone is waiting to take over
@@ -78,4 +87,6 @@ class KnockoutQueue
 		std::deque<int> mWaiting;
 		std::vector<int> mLives;
 		std::vector<int> mKnockedOut;
+		bool mFinal = false;
+		bool mFinalStarted = false;
 };

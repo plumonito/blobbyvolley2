@@ -95,9 +95,61 @@ BOOST_AUTO_TEST_CASE( mistake_knocks_player_out )
 	BOOST_CHECK_EQUAL(queue.getActive(RIGHT_PLAYER), 1);
 	BOOST_CHECK(queue.getKnockedOut().empty());
 
+	// the final is best of three
+	mistake(queue, RIGHT_PLAYER);
+	BOOST_CHECK_EQUAL(queue.getRemaining(), 2);
 	mistake(queue, RIGHT_PLAYER);
 	BOOST_CHECK_EQUAL(queue.getRemaining(), 1);
 	BOOST_CHECK_EQUAL(queue.getWinner(), 2);
+}
+
+BOOST_AUTO_TEST_CASE( final_is_best_of_three )
+{
+	KnockoutQueue queue(4, 3);
+	BOOST_CHECK(!queue.isFinal());
+	endTurn(queue, RIGHT_PLAYER);			// player 2 takes over on the right
+	mistake(queue, LEFT_PLAYER);			// player 0 loses a life, player 3 comes in
+	BOOST_CHECK(!queue.isFinal());
+
+	// players 0 and 1 are knocked out: 2 and 3 play the final with two lives each
+	for (int player : {0, 1})
+	{
+		while (!queue.isKnockedOut(player))
+		{
+			PlayerSide side = queue.getActive(LEFT_PLAYER) == player ? LEFT_PLAYER
+					: queue.getActive(RIGHT_PLAYER) == player ? RIGHT_PLAYER : NO_PLAYER;
+			if (side == NO_PLAYER)
+				endTurn(queue, LEFT_PLAYER);
+			else
+				mistake(queue, side);
+		}
+	}
+	BOOST_CHECK(queue.isFinal());
+	BOOST_CHECK(queue.hasFinalStarted());
+	BOOST_CHECK(queue.getWaiting().empty());
+	int left = queue.getActive(LEFT_PLAYER), right = queue.getActive(RIGHT_PLAYER);
+	BOOST_CHECK(std::set<int>({left, right}) == std::set<int>({2, 3}));
+	BOOST_CHECK_EQUAL(queue.getLives(left), KnockoutQueue::FINAL_LIVES);
+	BOOST_CHECK_EQUAL(queue.getLives(right), KnockoutQueue::FINAL_LIVES);
+	BOOST_CHECK_EQUAL(queue.addPlayer(3), -1);		// nobody joins the final
+
+	endTurn(queue, LEFT_PLAYER);
+	BOOST_CHECK(!queue.hasFinalStarted());			// only reported once
+	BOOST_CHECK(queue.isFinal());
+
+	mistake(queue, LEFT_PLAYER);
+	mistake(queue, RIGHT_PLAYER);
+	BOOST_CHECK_EQUAL(queue.getWinner(), -1);		// one all
+	mistake(queue, LEFT_PLAYER);
+	BOOST_CHECK_EQUAL(queue.getWinner(), right);
+}
+
+// two players who start alone play with the lives chosen in the menu
+BOOST_AUTO_TEST_CASE( no_final_without_knockout )
+{
+	KnockoutQueue queue(2, 1);
+	BOOST_CHECK(!queue.isFinal());
+	BOOST_CHECK_EQUAL(queue.addPlayer(1), 2);
 }
 
 BOOST_AUTO_TEST_CASE( lives )
@@ -115,8 +167,10 @@ BOOST_AUTO_TEST_CASE( lives )
 	mistake(queue, LEFT_PLAYER);							// player 0 loses the second life
 	BOOST_CHECK(queue.getKnockedOut() == std::vector<int>({0}));
 	BOOST_CHECK_EQUAL(queue.getActive(LEFT_PLAYER), 2);
-	BOOST_CHECK_EQUAL(queue.getLives(2), 1);
 	BOOST_CHECK_EQUAL(queue.getRemaining(), 2);
+	// the last two play the final, whatever lives they had left
+	BOOST_CHECK_EQUAL(queue.getLives(1), KnockoutQueue::FINAL_LIVES);
+	BOOST_CHECK_EQUAL(queue.getLives(2), KnockoutQueue::FINAL_LIVES);
 }
 
 // a mistake in the same frame in which the turn ends: the player must not leave twice
@@ -146,17 +200,14 @@ BOOST_AUTO_TEST_CASE( join_during_match )
 	BOOST_CHECK(queue.getWaiting() == std::deque<int>({1}));
 }
 
-BOOST_AUTO_TEST_CASE( join_after_last_two_remain )
+BOOST_AUTO_TEST_CASE( no_join_once_last_two_remain )
 {
 	KnockoutQueue queue(3, 1);
-	mistake(queue, LEFT_PLAYER);		// player 0 out, nobody waits any more
+	mistake(queue, LEFT_PLAYER);		// player 0 out: the final starts
 	BOOST_CHECK(queue.getWaiting().empty());
 
-	BOOST_CHECK_EQUAL(queue.addPlayer(1), 3);
-	BOOST_CHECK_EQUAL(queue.getRemaining(), 3);
-	endTurn(queue, LEFT_PLAYER);			// player 2 makes room for the newcomer
-	BOOST_CHECK_EQUAL(queue.getActive(LEFT_PLAYER), 3);
-	BOOST_CHECK(queue.getWaiting() == std::deque<int>({2}));
+	BOOST_CHECK_EQUAL(queue.addPlayer(1), -1);
+	BOOST_CHECK_EQUAL(queue.getRemaining(), 2);
 }
 
 BOOST_AUTO_TEST_CASE( no_join_after_match_is_decided )

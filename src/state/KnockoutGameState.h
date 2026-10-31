@@ -39,8 +39,9 @@ class SwitchableInputSource;
 
 /*! \class KnockoutGameState
 	\brief local knockout match of up to eight players sharing the two blobs
-	\details see KnockoutQueue for the rules. Controllers that are not playing yet can join
-			at any time by pressing jump.
+	\details see KnockoutQueue for the rules. The players enter the court in random order.
+			Controllers that are not playing yet can join until the final by pressing jump.
+			The final starts in slow motion, with "Final round!" on screen.
 */
 class KnockoutGameState : public State
 {
@@ -70,6 +71,9 @@ class KnockoutGameState : public State
 		/// tells a player that it is their turn by letting their gamepad vibrate
 		void announceTurn(int player);
 		void showMessage(const std::string& text);
+		/// slow motion and the "Final round!" banner
+		void startFinal();
+		void stepFinalBanner();
 		/// sounds of the last frame
 		void playSounds();
 
@@ -83,6 +87,10 @@ class KnockoutGameState : public State
 		std::vector<KnockoutPlayer> mPlayers;
 		KnockoutSettings mSettings;
 		KnockoutQueue mQueue;
+		/// game speed in frames per second, without slow motion
+		float mGameSpeed = 0;
+		/// the frames for which the final is still in slow motion and announced
+		int mFinalBannerFrames = 0;
 		TurnTracker mTurns;
 		WaitingPlayers mWaiting;
 		/// the players list, and the spectators from it

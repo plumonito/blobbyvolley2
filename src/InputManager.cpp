@@ -52,7 +52,7 @@ void InputManager::updateInput()
 				mRunning = false;
 				break;
 			case SDL_KEYDOWN:
-				if (event.key.keysym.sym == SDLK_ESCAPE && !event.key.repeat)
+				if (event.key.keysym.sym == SDLK_ESCAPE && !event.key.repeat && keyboardEnabled())
 					mExit = true;
 				break;
 			case SDL_CONTROLLERDEVICEADDED:
@@ -102,8 +102,15 @@ bool InputManager::exit() const
 
 bool InputManager::isKeyPressed(SDL_Keycode code) const
 {
+	if (!keyboardEnabled())
+		return false;
 	const Uint8* keyState = SDL_GetKeyboardState(nullptr);
 	return keyState[SDL_GetScancodeFromKey(code)];
+}
+
+bool InputManager::keyboardEnabled() const
+{
+	return mGamepads.empty();
 }
 
 std::vector<int> InputManager::getGamepads() const

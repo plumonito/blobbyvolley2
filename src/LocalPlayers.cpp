@@ -65,8 +65,11 @@ namespace
 std::vector<LocalController> LocalController::getAvailable(const InputManager& inputMgr)
 {
 	std::vector<LocalController> controllers;
-	for (int i = 0; i < KEYBOARD_LAYOUT_COUNT; ++i)
-		controllers.push_back(LocalController{KEYBOARD, i});
+	if (inputMgr.keyboardEnabled())
+	{
+		for (int i = 0; i < KEYBOARD_LAYOUT_COUNT; ++i)
+			controllers.push_back(LocalController{KEYBOARD, i});
+	}
 	for (int pad : inputMgr.getGamepads())
 		controllers.push_back(LocalController{GAMEPAD, pad});
 	return controllers;

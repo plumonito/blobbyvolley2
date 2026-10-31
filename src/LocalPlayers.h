@@ -50,7 +50,8 @@ struct LocalController
 	bool operator==(const LocalController& other) const { return type == other.type && id == other.id; }
 	bool operator!=(const LocalController& other) const { return !(*this == other); }
 
-	/// all controllers that are currently available: the keyboard layouts followed by the connected gamepads
+	/// all controllers that are currently available: the keyboard layouts (only while the keyboard
+	/// is enabled, see InputManager::keyboardEnabled) followed by the connected gamepads
 	static std::vector<LocalController> getAvailable(const InputManager& inputMgr);
 	/// short display name, e.g. "keys wasd" or "pad 2"
 	std::string getName(const InputManager& inputMgr) const;

@@ -8,13 +8,15 @@ player takes over. Miss and you are out. The last blob standing wins.
 
 The game starts in the player menu.
 
-* Every connected gamepad and the two keyboard layouts (`W A S D` and the arrow keys)
-  join by pressing jump, and leave with B (keyboard: down). With left / right you pick
+* Every connected gamepad joins by pressing jump. The two keyboard layouts (`W A S D` and
+  the arrow keys) only work while no gamepad is connected: when Steam runs, its desktop
+  layout turns the d-pad and left stick into arrow keys, A into Enter and Start into Esc,
+  so a gamepad would also act as a keyboard player. Players join by pressing jump, and leave with B (keyboard: down). With left / right you pick
   your name from the players list (see below). Y (keyboard: `L`) sets the number of lives,
   X (keyboard: `X`) switches drunk mode: the whole game runs at 60 % speed, so everybody
   has more time to react. Start (keyboard: Enter) starts the match, once two players have
   joined.
-* All players wait in one queue. The first two start on the left and right blob, the
+* All players wait in one queue, in random order. The first two start on the left and right blob, the
   others wait at the back of the beach. While waiting you can walk around and jump.
   The order of the queue is shown by depth: the next player stands in front, everyone
   after them one row further back.
@@ -25,9 +27,12 @@ The game starts in the player menu.
   vibrates briefly.
 * When your side makes a mistake (ball on the ground, fourth touch), you lose a life.
   Without lives left you are out.
+* When a player is knocked out and only two are left, they play the final: best of
+  three, whatever lives they had left. It starts in slow motion with "Final round!" on
+  screen, and nobody can join any more.
 * Everybody from the players list who is not playing, or is already out, watches from the
   far end of the beach: small grey blobs that hop around and cheer whenever a rally ends.
-* New players can join at any time during the match, also with gamepads plugged in while
+* New players can join at any time before the final, also with gamepads plugged in while
   playing: press jump and you queue up last (up to 8 players per match).
 * Start (keyboard: Esc) pauses the match.
 

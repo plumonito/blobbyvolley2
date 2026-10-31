@@ -160,11 +160,14 @@ void KnockoutSetupState::step_impl()
 	hints.push_back({"Back", theme::BUTTON_MENU, mQuitConfirmFrames > 0 ? "Again to quit" : "Quit"});
 	doHints(536, hints);
 
-	std::string keyboard = "Keyboard:  W/Up join   S/Down leave   ";
-	if (!mProfiles.empty())
-		keyboard += "A D/Left Right name   ";
-	keyboard += "L lives   X drunk   Enter play   Esc quit";
-	imgui.doText(Vector2(400, 572), keyboard, TF_SMALL_FONT | TF_ALIGN_CENTER, theme::TEXT_DIM);
+	if (inputMgr.keyboardEnabled())
+	{
+		std::string keyboard = "Keyboard:  W/Up join   S/Down leave   ";
+		if (!mProfiles.empty())
+			keyboard += "A D/Left Right name   ";
+		keyboard += "L lives   X drunk   Enter play   Esc quit";
+		imgui.doText(Vector2(400, 572), keyboard, TF_SMALL_FONT | TF_ALIGN_CENTER, theme::TEXT_DIM);
+	}
 
 	// ------------------------------------------------------------------------------------------
 	// state changes
@@ -200,14 +203,6 @@ void KnockoutSetupState::drawPlayerCard(int slot, float x, float y)
 
 	const KnockoutPlayer& player = mPlayers[slot];
 	imgui.doPanel(Vector2(x, y), Vector2(x + CARD_WIDTH, y + CARD_HEIGHT), theme::PANEL, 0.85, 18);
-
-	// order of play
-	std::string order = "#" + std::to_string(slot + 1);
-	if (slot == 0)
-		order += " left";
-	else if (slot == 1)
-		order += " right";
-	imgui.doText(Vector2(x + 12, y + 8), order, TF_SMALL_FONT, theme::ACCENT);
 
 	int skin = getRenderer().getBlobSkin(player.getColor(), player.face);
 	imgui.doBlob(Vector2(centreX, y + 76), skin, 1, mSquish[player.number].frame());

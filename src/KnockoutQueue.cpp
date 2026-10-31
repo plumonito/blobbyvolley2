@@ -39,6 +39,7 @@ KnockoutQueue::KnockoutQueue(int playerCount, int lives) : mLives(playerCount, l
 bool KnockoutQueue::update(const bool turnOver[MAX_PLAYERS], const bool error[MAX_PLAYERS])
 {
 	mKnockedOut.clear();
+	mFinalStarted = false;
 
 	// nothing changes once the match is decided
 	if (getWinner() != -1)
@@ -62,13 +63,22 @@ bool KnockoutQueue::update(const bool turnOver[MAX_PLAYERS], const bool error[MA
 			changed = leaveCourt(side) || changed;
 		}
 	}
+
+	if (!mFinal && !mKnockedOut.empty() && getRemaining() == 2)
+	{
+		// nobody can be waiting, so the two players on court are the finalists
+		mFinal = true;
+		mFinalStarted = true;
+		mLives[mActive[LEFT_PLAYER]] = FINAL_LIVES;
+		mLives[mActive[RIGHT_PLAYER]] = FINAL_LIVES;
+	}
 	return changed;
 }
 
 int KnockoutQueue::addPlayer(int lives)
 {
 	assert(lives >= 1);
-	if (getWinner() != -1)
+	if (mFinal || getWinner() != -1)
 		return -1;
 
 	int player = mLives.size();

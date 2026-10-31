@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 /* includes */
 #include <algorithm>
+#include <random>
 
 #include <SDL.h>
 
@@ -59,6 +60,9 @@ namespace
 	const float SWAP_SOUND_VOLUME = 0.6;
 	/// the crowd cheers again and again for the winner
 	const int WINNER_CHEER_FRAMES = 90;
+	/// the final starts in slow motion for this long, at this fraction of the game speed
+	const float FINAL_SLOW_MOTION_SECONDS = 3;
+	const float FINAL_SLOW_MOTION_SPEED = 0.4;
 }
 
 KnockoutGameState::KnockoutGameState(std::vector<KnockoutPlayer> players, KnockoutSettings settings)
@@ -66,6 +70,8 @@ KnockoutGameState::KnockoutGameState(std::vector<KnockoutPlayer> players, Knocko
 	, mSettings(settings)
 	, mQueue(mPlayers.size(), settings.lives)
 {
+	// the queue lets the players on court in the order of the list
+	std::shuffle(mPlayers.begin(), mPlayers.end(), std::mt19937(std::random_device()()));
 }
 
 KnockoutGameState::~KnockoutGameState() = default;
@@ -74,8 +80,8 @@ void KnockoutGameState::init()
 {
 	std::shared_ptr<IUserConfigReader> config = IUserConfigReader::createUserConfigReader("config.xml");
 	// drunk mode slows down everything, the physics stay the same
-	float speed = config->getFloat("gamefps") * (mSettings.drunk ? KnockoutSettings::DRUNK_SPEED : 1);
-	SpeedController::getMainInstance()->setGameSpeed(speed);
+	mGameSpeed = config->getFloat("gamefps") * (mSettings.drunk ? KnockoutSettings::DRUNK_SPEED : 1);
+	SpeedController::getMainInstance()->setGameSpeed(mGameSpeed);
 
 	playSound(SoundManager::WHISTLE, ROUND_START_SOUND_VOLUME);
 
@@ -155,10 +161,19 @@ void KnockoutGameState::step_impl()
 		stepWaitingPlayers();
 		updateCrowd();
 		playSounds();
+		stepFinalBanner();
 
 		int winner = mQueue.getWinner();
 		if (winner != -1)
+		{
 			mWinnerSide = mQueue.getActive(LEFT_PLAYER) == winner ? LEFT_PLAYER : RIGHT_PLAYER;
+			// the winning screen runs at the normal speed
+			if (mFinalBannerFrames > 0)
+			{
+				mFinalBannerFrames = 0;
+				SpeedController::getMainInstance()->setGameSpeed(mGameSpeed);
+			}
+		}
 
 		if (mMessageFrames > 0)
 			--mMessageFrames;
@@ -215,6 +230,8 @@ void KnockoutGameState::updateKnockout()
 
 		for (int player : mQueue.getKnockedOut())
 			showMessage(mPlayers[player].getName() + " is out!");
+		if (mQueue.hasFinalStarted())
+			startFinal();
 
 		showPlayersOnCourt();
 	}
@@ -331,6 +348,22 @@ void KnockoutGameState::showMessage(const std::string& text)
 	mMessageFrames = MESSAGE_FRAMES;
 }
 
+void KnockoutGameState::startFinal()
+{
+	float speed = mGameSpeed * FINAL_SLOW_MOTION_SPEED;
+	SpeedController::getMainInstance()->setGameSpeed(speed);
+	mFinalBannerFrames = (int)(FINAL_SLOW_MOTION_SECONDS * speed);
+	mCrowd.cheer();
+}
+
+void KnockoutGameState::stepFinalBanner()
+{
+	if (mFinalBannerFrames == 0)
+		return;
+	if (--mFinalBannerFrames == 0)
+		SpeedController::getMainInstance()->setGameSpeed(mGameSpeed);
+}
+
 void KnockoutGameState::playSounds()
 {
 	for (const auto& event : mMatch->getEvents())
@@ -384,7 +417,7 @@ void KnockoutGameState::presentMatch()
 	}
 
 	// players left and time
-	std::string left = std::to_string(mQueue.getRemaining()) + " left";
+	std::string left = mQueue.isFinal() ? "Final, best of 3" : std::to_string(mQueue.getRemaining()) + " left";
 	float leftWidth = renderer.getTextWidth(left, TF_NORMAL);
 	imgui.doPanel(Vector2(12, 12), Vector2(12 + leftWidth + 28, 52), theme::PANEL, 0.75, 20);
 	imgui.doText(Vector2(26, 16), left, TF_NORMAL);
@@ -416,6 +449,14 @@ void KnockoutGameState::presentMatch()
 		imgui.doPanel(Vector2(400 - width / 2 - 26, 94), Vector2(400 + width / 2 + 26, 160), theme::PANEL, 0.8, 33);
 		imgui.doText(Vector2(400, 100), mMessage, TF_LARGE_FONT | TF_ALIGN_CENTER);
 	}
+
+	if (mFinalBannerFrames > 0)
+	{
+		const std::string title = "Final round!";
+		float width = renderer.getTextWidth(title, TF_HUGE_FONT);
+		imgui.doPanel(Vector2(400 - width / 2 - 36, 214), Vector2(400 + width / 2 + 36, 310), theme::ACCENT, 0.9, 48);
+		imgui.doText(Vector2(400, 230), title, TF_HUGE_FONT | TF_ALIGN_CENTER);
+	}
 }
 
 void KnockoutGameState::doNameTag(PlayerSide side)
@@ -427,9 +468,10 @@ void KnockoutGameState::doNameTag(PlayerSide side)
 	const float dot = 16;
 	const float pip = 10;
 	const float height = 40;
+	const int maxLives = mQueue.isFinal() ? KnockoutQueue::FINAL_LIVES : mSettings.lives;
 	float width = 14 + dot + 10 + getRenderer().getTextWidth(name, TF_NORMAL) + 14;
-	if (mSettings.lives > 1)
-		width += 4 + mSettings.lives * (pip + 4);
+	if (maxLives > 1)
+		width += 4 + maxLives * (pip + 4);
 
 	float x = side == LEFT_PLAYER ? 12 : 788 - width;
 	const float y = 600 - 12 - height;
@@ -440,9 +482,9 @@ void KnockoutGameState::doNameTag(PlayerSide side)
 	imgui.doText(Vector2(x, y + 4), name, TF_NORMAL);
 	x += getRenderer().getTextWidth(name, TF_NORMAL) + 4;
 
-	if (mSettings.lives > 1)
+	if (maxLives > 1)
 	{
-		for (int i = 1; i <= mSettings.lives; ++i)
+		for (int i = 1; i <= maxLives; ++i)
 		{
 			float top = y + (height - pip) / 2;
 			bool alive = i <= mQueue.getLives(player);
@@ -459,7 +501,8 @@ void KnockoutGameState::presentPause()
 	imgui.doPanel(Vector2(190, 200), Vector2(610, 380), theme::PANEL, 0.92, 28);
 	imgui.doText(Vector2(400, 222), "Paused", TF_LARGE_FONT | TF_ALIGN_CENTER);
 	doHints(296, { {"Start", theme::BUTTON_MENU, "Resume"}, {"Back", theme::BUTTON_MENU, "End match"} });
-	imgui.doText(Vector2(400, 340), "Keyboard:  Enter resume   Esc end match", TF_SMALL_FONT | TF_ALIGN_CENTER, theme::TEXT_DIM);
+	if (getInputMgr().keyboardEnabled())
+		imgui.doText(Vector2(400, 340), "Keyboard:  Enter resume   Esc end match", TF_SMALL_FONT | TF_ALIGN_CENTER, theme::TEXT_DIM);
 }
 
 void KnockoutGameState::presentWinner()
@@ -480,7 +523,8 @@ void KnockoutGameState::presentWinner()
 
 	imgui.doText(Vector2(400, 392), "Last blob standing", TF_NORMAL | TF_ALIGN_CENTER, theme::TEXT_DIM);
 	doHints(434, { {"Start", theme::BUTTON_MENU, "Play again"}, {"B", theme::BUTTON_B, "Players"} });
-	imgui.doText(Vector2(400, 468), "Keyboard:  Enter play again   Esc players", TF_SMALL_FONT | TF_ALIGN_CENTER, theme::TEXT_DIM);
+	if (getInputMgr().keyboardEnabled())
+		imgui.doText(Vector2(400, 468), "Keyboard:  Enter play again   Esc players", TF_SMALL_FONT | TF_ALIGN_CENTER, theme::TEXT_DIM);
 }
 
 const char* KnockoutGameState::getStateName() const

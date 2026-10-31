@@ -47,7 +47,12 @@ class InputManager : public ObjectCounter<InputManager>
 		/// true in the frame in which escape was pressed
 		bool exit() const;
 
+		/// false (for every key) while the keyboard is ignored, see keyboardEnabled
 		bool isKeyPressed(SDL_Keycode code) const;
+		/// the keyboard is only used while no gamepad is connected: when Steam runs, its desktop
+		/// layout turns gamepad presses into key presses (d-pad and left stick into the arrow keys,
+		/// A into Enter, Start into Escape), so one gamepad would also act as a keyboard player
+		bool keyboardEnabled() const;
 
 		// Gamepads (SDL GameController API), identified by their SDL joystick instance id.
 		// They are opened automatically when connected and listed in connection order.
